@@ -71,6 +71,16 @@ var LaneGlyphs = &Glyphs{
 	SelectionHidesOtherLines: false,
 }
 
+// With a Nerd Font, the lane graph uses Font Awesome's circles, which are
+// bigger than the Unicode ones in most fonts. They are at the same code
+// points in Nerd Fonts 2 and 3.
+var LaneNerdFontGlyphs = func() *Glyphs {
+	glyphs := *LaneGlyphs
+	glyphs.Commit = "\uf111" // nf-fa-circle
+	glyphs.Merge = "\uf192"  // nf-fa-dot_circle_o
+	return &glyphs
+}()
+
 type cellType int
 
 const (

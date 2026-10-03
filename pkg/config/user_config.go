@@ -437,6 +437,7 @@ type LogConfig struct {
 	// How the git graph is laid out. One of 'classic' | 'lanes'
 	// 'classic' keeps the graph narrow by moving branches into any column that frees up.
 	// 'lanes' keeps every branch in a fixed column from top to bottom, gives every branch its own color instead of the color of its author, and draws bigger nodes with more space between the columns, which makes it easier to follow branches that merge into each other, at the cost of a wider graph.
+	// When `gui.nerdFontsVersion` is set, 'lanes' draws its nodes with the bigger circles of the Nerd Font.
 	GraphStyle string `yaml:"graphStyle" jsonschema:"enum=classic,enum=lanes"`
 }
 

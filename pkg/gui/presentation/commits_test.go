@@ -12,6 +12,7 @@ import (
 	"github.com/jesseduffield/lazygit/pkg/common"
 	"github.com/jesseduffield/lazygit/pkg/gui/presentation/authors"
 	"github.com/jesseduffield/lazygit/pkg/gui/presentation/graph"
+	"github.com/jesseduffield/lazygit/pkg/gui/presentation/icons"
 	"github.com/jesseduffield/lazygit/pkg/gui/style"
 	"github.com/jesseduffield/lazygit/pkg/utils"
 	"github.com/samber/lo"
@@ -49,6 +50,7 @@ func TestGetCommitListDisplayStrings(t *testing.T) {
 		endIdx                    int
 		showGraph                 bool
 		graphStyle                string
+		useIcons                  bool
 		bisectInfo                *git_commands.BisectInfo
 		expected                  string
 		focus                     bool
@@ -262,6 +264,25 @@ func TestGetCommitListDisplayStrings(t *testing.T) {
 		hash2 │  ●  commit2
 		hash3 │  │  ●  commit3
 		hash4 ◉──┼──╯  commit4
+						`),
+		},
+		{
+			testName: "showing graph in lanes style, with nerd fonts",
+			commitOpts: []models.NewCommitOpts{
+				{Name: "commit1", Hash: "hash1", Parents: []string{"hash2", "hash3"}},
+				{Name: "commit2", Hash: "hash2", Parents: []string{"hash3"}},
+			},
+			startIdx:                  0,
+			endIdx:                    2,
+			showGraph:                 true,
+			graphStyle:                "lanes",
+			useIcons:                  true,
+			bisectInfo:                git_commands.NewNullBisectInfo(),
+			cherryPickedCommitHashSet: set.New[string](),
+			now:                       time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+			expected: formatExpected(`
+		󰘭 hash1 ──╮  commit1
+		󰜘 hash2   │  commit2
 						`),
 		},
 		{
@@ -637,6 +658,7 @@ func TestGetCommitListDisplayStrings(t *testing.T) {
 			t.Run(s.testName, func(t *testing.T) {
 				hashPool := &utils.StringPool{}
 				common.UserConfig().Git.Log.GraphStyle = lo.CoalesceOrEmpty(s.graphStyle, "classic")
+				icons.SetNerdFontsVersion(lo.Ternary(s.useIcons, "3", ""))
 
 				commits := lo.Map(s.commitOpts,
 					func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })

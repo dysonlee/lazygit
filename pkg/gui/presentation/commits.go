@@ -84,7 +84,7 @@ func GetCommitListDisplayStrings(
 	var getGraphLine func(int) string
 	if showGraph {
 		graphStyle := common.UserConfig().Git.Log.GraphStyle
-		glyphs := lo.Ternary(graphStyle == "lanes", graph.LaneGlyphs, graph.ClassicGlyphs)
+		glyphs := graphGlyphs(graphStyle)
 		if len(commits) > 0 && commits[0].Divergence != models.DivergenceNone {
 			// Showing a divergence log; we know we don't have any rebasing
 			// commits in this case. But we need to render separate graphs for
@@ -309,6 +309,16 @@ func indexOfFirstNonTODOCommit(commits []*models.Commit) int {
 
 	// shouldn't land here
 	return 0
+}
+
+func graphGlyphs(graphStyle string) *graph.Glyphs {
+	if graphStyle != "lanes" {
+		return graph.ClassicGlyphs
+	}
+	if icons.IsIconEnabled() {
+		return graph.LaneNerdFontGlyphs
+	}
+	return graph.LaneGlyphs
 }
 
 func loadPipesets(commits []*models.Commit, graphStyle string) [][]graph.Pipe {
