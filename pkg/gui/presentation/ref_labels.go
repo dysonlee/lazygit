@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/jesseduffield/generics/set"
 	"github.com/jesseduffield/lazygit/pkg/commands/models"
@@ -103,12 +104,39 @@ func renderRefLabels(labels []refLabel, width int, labelStyle *style.TextStyle, 
 
 	const minLineWidth = 1
 	nameWidth := width - minLineWidth - utils.StringWidth(prefix) - utils.StringWidth(suffix)
-	pill := prefix + utils.TruncateWithEllipsis(label.name, nameWidth) + suffix
+	pill := prefix + shortenRefName(labelName(label, withIcons), nameWidth) + suffix
 	lineWidth := max(width-utils.StringWidth(pill), 0)
 	if lineStyle == nil {
 		return labelStyle.Sprint(pill) + strings.Repeat(" ", lineWidth)
 	}
 	return labelStyle.Sprint(pill) + lineStyle.Sprint(graph.LabelLine(lineWidth))
+}
+
+// labelName returns the name to show for a label. With icons, which tell
+// whether a branch is a remote one, a remote branch goes without the name of
+// its remote.
+func labelName(label refLabel, withIcons bool) string {
+	if withIcons && label.remote && !label.local {
+		if _, branchName, found := strings.Cut(label.name, "/"); found {
+			return branchName
+		}
+	}
+	return label.name
+}
+
+// shortenRefName fits a ref name into the given width. It abbreviates the
+// leading segments of a name like "hotfix/ROAR-13955" to their first letter,
+// one after the other, since the last segment usually tells most about the
+// branch, e.g. by a ticket number; if that isn't enough, it leaves out the
+// middle of the name.
+func shortenRefName(name string, width int) string {
+	segments := strings.Split(name, "/")
+	for i := 0; i < len(segments)-1 && utils.StringWidth(strings.Join(segments, "/")) > width; i++ {
+		if firstLetter, _ := utf8.DecodeRuneInString(segments[i]); firstLetter != utf8.RuneError {
+			segments[i] = string(firstLetter)
+		}
+	}
+	return utils.TruncateWithEllipsisInMiddle(strings.Join(segments, "/"), width)
 }
 
 // The width of the labels in front of the lane graph

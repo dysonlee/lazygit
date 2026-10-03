@@ -85,15 +85,21 @@ func TestRenderRefLabels(t *testing.T) {
 			expected:  " v1.0 \uf02b ┈┈┈┈┈┈┈┈",
 		},
 		{
+			name:      "a remote branch goes without the name of its remote when the icon shows that it is remote",
+			labels:    []refLabel{{name: "origin/hotfix/ROAR-13955", remote: true}},
+			withIcons: true,
+			expected:  " h/ROA…13955 \uf0c2 ┈",
+		},
+		{
 			name:     "without a line",
 			labels:   []refLabel{{name: "main", head: true, local: true, remote: true}, {name: "v1", tag: true}},
 			noLine:   true,
 			expected: " ✓ main +1      ",
 		},
 		{
-			name:     "long names are truncated so that the line to the graph still shows",
+			name:     "long names are shortened, leaving room for the line to the graph",
 			labels:   []refLabel{{name: "feature/ROAR-13888-cleanup", local: true}},
-			expected: " feature/ROAR… ┈",
+			expected: " f/ROAR…leanup ┈",
 		},
 	}
 
@@ -144,6 +150,27 @@ func TestBranchNameOfCommit(t *testing.T) {
 			common.UserConfig().Git.Log.GraphStyle = test.graphStyle
 
 			assert.Equal(t, test.expected, BranchNameOfCommit(common, commits, branches, test.index))
+		})
+	}
+}
+
+func TestShortenRefName(t *testing.T) {
+	tests := []struct {
+		name     string
+		width    int
+		expected string
+	}{
+		{name: "hotfix/ROAR-13955", width: 17, expected: "hotfix/ROAR-13955"},
+		{name: "hotfix/ROAR-13955", width: 13, expected: "h/ROAR-13955"},
+		{name: "feature/team/ROAR-1", width: 13, expected: "f/team/ROAR-1"},
+		{name: "feature/team/ROAR-1", width: 12, expected: "f/t/ROAR-1"},
+		{name: "feature/ROAR-13888-cleanup", width: 13, expected: "f/ROAR…leanup"},
+		{name: "a-very-long-branch-name", width: 9, expected: "a-ve…name"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expected, shortenRefName(test.name, test.width))
 		})
 	}
 }
