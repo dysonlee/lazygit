@@ -439,6 +439,8 @@ type LogConfig struct {
 	// 'lanes' keeps every branch in a fixed column from top to bottom, gives every branch its own color instead of the color of its author, and draws bigger nodes with more space between the columns, which makes it easier to follow branches that merge into each other, at the cost of a wider graph.
 	// When `gui.nerdFontsVersion` is set, 'lanes' draws its nodes with the bigger circles of the Nerd Font.
 	GraphStyle string `yaml:"graphStyle" jsonschema:"enum=classic,enum=lanes"`
+	// If true (default), the 'lanes' graph style draws the commits that are not reachable from HEAD in faint text, which is useful when showing the whole graph.
+	DimUnreachableCommits bool `yaml:"dimUnreachableCommits"`
 }
 
 type CommitPrefixConfig struct {
@@ -964,10 +966,11 @@ func GetDefaultConfigForPlatform(platform string) *UserConfig {
 				SquashMergeMessage: "Squash merge {{selectedRef}} into {{currentBranch}}",
 			},
 			Log: LogConfig{
-				Order:          "topo-order",
-				ShowGraph:      "always",
-				ShowWholeGraph: false,
-				GraphStyle:     "classic",
+				Order:                 "topo-order",
+				ShowGraph:             "always",
+				ShowWholeGraph:        false,
+				GraphStyle:            "classic",
+				DimUnreachableCommits: true,
 			},
 			LocalBranchSortOrder:         "date",
 			RemoteBranchSortOrder:        "date",

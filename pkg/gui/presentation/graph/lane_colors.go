@@ -18,12 +18,23 @@ var laneStyles = lo.Map(
 	},
 )
 
+var dimmedLaneStyles = lo.Map(laneStyles, func(laneStyle *style.TextStyle, _ int) *style.TextStyle {
+	value := laneStyle.SetDim()
+	return &value
+})
+
 var LaneColorCount = len(laneStyles)
 
 // LaneStyle returns the style of the lane graph's color with the given index,
 // which is in the range [0, LaneColorCount).
 func LaneStyle(index int) *style.TextStyle {
 	return laneStyles[index]
+}
+
+// DimmedLaneStyle is like LaneStyle, but for parts of the graph that are drawn
+// in faint text.
+func DimmedLaneStyle(index int) *style.TextStyle {
+	return dimmedLaneStyles[index]
 }
 
 // pickLaneColor returns the first color starting from next that isn't in

@@ -556,6 +556,11 @@ git:
     # circles of the Nerd Font.
     graphStyle: classic
 
+    # If true (default), the 'lanes' graph style draws the commits that are not
+    # reachable from HEAD in faint text, which is useful when showing the whole
+    # graph.
+    dimUnreachableCommits: true
+
   # How branches are sorted in the local branches view.
   # One of: 'date' (default) | 'recency' | 'alphabetical'
   # Can be changed from within Lazygit with the Sort Order menu (`s`) in the

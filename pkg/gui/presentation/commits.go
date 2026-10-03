@@ -26,10 +26,20 @@ type pipeSetCacheKey struct {
 	commitCount int
 	divergence  models.Divergence
 	graphStyle  string
+	// the hash of the head commit if commits not reachable from it are
+	// dimmed, empty otherwise
+	headHash string
+}
+
+type graphData struct {
+	pipeSets [][]graph.Pipe
+	// the commits reachable from the head commit if the others are dimmed,
+	// nil otherwise
+	reachable *set.Set[*string]
 }
 
 var (
-	pipeSetCache = make(map[pipeSetCacheKey][][]graph.Pipe)
+	pipeSetCache = make(map[pipeSetCacheKey]graphData)
 	mutex        deadlock.Mutex
 
 	// The pipes have the colors of the authors of the commits they start at,
@@ -60,6 +70,7 @@ func GetCommitListDisplayStrings(
 	startIdx int,
 	endIdx int,
 	showGraph bool,
+	dimUnreachable bool,
 	bisectInfo *git_commands.BisectInfo,
 ) [][]string {
 	mutex.Lock()
@@ -82,6 +93,7 @@ func GetCommitListDisplayStrings(
 
 	// function expects to be passed the index of the commit in terms of the `commits` slice
 	var getGraphLine func(int) string
+	isDimmed := func(*models.Commit) bool { return false }
 	if showGraph {
 		graphStyle := common.UserConfig().Git.Log.GraphStyle
 		glyphs := graphGlyphs(graphStyle)
@@ -99,7 +111,7 @@ func GetCommitListDisplayStrings(
 
 			if localSectionStart > 0 {
 				// we have some remote commits
-				pipeSets := loadPipesets(commits[:localSectionStart], graphStyle)
+				pipeSets, _ := loadPipesets(commits[:localSectionStart], graphStyle, false)
 				if startIdx < localSectionStart {
 					// some of the remote commits are visible
 					start := startIdx
@@ -117,7 +129,7 @@ func GetCommitListDisplayStrings(
 			}
 			if localSectionStart < len(commits) {
 				// we have some local commits
-				pipeSets := loadPipesets(commits[localSectionStart:], graphStyle)
+				pipeSets, _ := loadPipesets(commits[localSectionStart:], graphStyle, false)
 				if localSectionStart < endIdx {
 					// some of the local commits are visible
 					graphOffset := max(startIdx, localSectionStart)
@@ -142,7 +154,12 @@ func GetCommitListDisplayStrings(
 			// but we'll never include TODO commits as part of the graph because it'll be messy)
 			graphOffset := max(startIdx, rebaseOffset)
 
-			pipeSets := loadPipesets(commits[rebaseOffset:], graphStyle)
+			pipeSets, reachable := loadPipesets(commits[rebaseOffset:], graphStyle, dimUnreachable && graphStyle == "lanes")
+			if reachable != nil {
+				isDimmed = func(commit *models.Commit) bool {
+					return !commit.IsTODO() && !reachable.Includes(commit.HashPtr())
+				}
+			}
 			pipeSetOffset := max(startIdx-rebaseOffset, 0)
 			graphPipeSets := pipeSets[pipeSetOffset:max(endIdx-rebaseOffset, 0)]
 			graphCommits := commits[graphOffset:endIdx]
@@ -215,6 +232,7 @@ func GetCommitListDisplayStrings(
 			now,
 			parseEmoji,
 			getGraphLine(unfilteredIdx),
+			isDimmed(commit),
 			fullDescription,
 			bisectStatus,
 			bisectInfo,
@@ -311,6 +329,27 @@ func indexOfFirstNonTODOCommit(commits []*models.Commit) int {
 	return 0
 }
 
+// commitDecorations returns the ref decorations that git log printed next to
+// the commit, e.g. "HEAD -> main", "origin/main", and "tag: v1.0" for
+// "(HEAD -> main, origin/main, tag: v1.0)".
+func commitDecorations(commit *models.Commit) []string {
+	if commit.ExtraInfo == "" {
+		return nil
+	}
+	return strings.Split(strings.Trim(commit.ExtraInfo, "()"), ", ")
+}
+
+// headCommitIndex returns the index of the commit that HEAD points to, as
+// told by its ref decorations: "HEAD -> main", or "HEAD" for a detached head.
+func headCommitIndex(commits []*models.Commit) (int, bool) {
+	_, index, found := lo.FindIndexOf(commits, func(commit *models.Commit) bool {
+		return lo.ContainsBy(commitDecorations(commit), func(decoration string) bool {
+			return decoration == "HEAD" || strings.HasPrefix(decoration, "HEAD -> ")
+		})
+	})
+	return index, found
+}
+
 func graphGlyphs(graphStyle string) *graph.Glyphs {
 	if graphStyle != "lanes" {
 		return graph.ClassicGlyphs
@@ -321,10 +360,18 @@ func graphGlyphs(graphStyle string) *graph.Glyphs {
 	return graph.LaneGlyphs
 }
 
-func loadPipesets(commits []*models.Commit, graphStyle string) [][]graph.Pipe {
+// loadPipesets returns the pipes of the graph of the given commits, and if
+// dimUnreachable is set and the head commit is among them, the commits that are
+// reachable from it; the edges starting at the other commits are dimmed.
+func loadPipesets(commits []*models.Commit, graphStyle string, dimUnreachable bool) ([][]graph.Pipe, *set.Set[*string]) {
 	if pipeSetCacheAuthorColors != authors.ColorsVersion() {
-		pipeSetCache = make(map[pipeSetCacheKey][][]graph.Pipe)
+		pipeSetCache = make(map[pipeSetCacheKey]graphData)
 		pipeSetCacheAuthorColors = authors.ColorsVersion()
+	}
+
+	headIdx, headFound := -1, false
+	if dimUnreachable {
+		headIdx, headFound = headCommitIndex(commits)
 	}
 
 	// given that our cache key is a commit hash and a commit count, it's very important that we don't actually try to render pipes
@@ -335,25 +382,33 @@ func loadPipesets(commits []*models.Commit, graphStyle string) [][]graph.Pipe {
 		divergence:  commits[0].Divergence,
 		graphStyle:  graphStyle,
 	}
+	if headFound {
+		cacheKey.headHash = commits[headIdx].Hash()
+	}
 
-	pipeSets, ok := pipeSetCache[cacheKey]
+	data, ok := pipeSetCache[cacheKey]
 	if !ok {
 		// pipe sets are unique to a commit head. and a commit count. Sometimes we haven't loaded everything for that.
 		// so let's just cache it based on that.
-		getStyle := func(commit *models.Commit) *style.TextStyle {
-			return authors.AuthorStyle(commit.AuthorName)
+		if headFound {
+			data.reachable = graph.ReachableFrom(commits, headIdx)
 		}
 		if graphStyle == "lanes" {
-			pipeSets = graph.GetLanePipeSets(commits, func(color int, _ *models.Commit) *style.TextStyle {
+			data.pipeSets = graph.GetLanePipeSets(commits, func(color int, commit *models.Commit) *style.TextStyle {
+				if data.reachable != nil && !data.reachable.Includes(commit.HashPtr()) {
+					return graph.DimmedLaneStyle(color)
+				}
 				return graph.LaneStyle(color)
 			})
 		} else {
-			pipeSets = graph.GetPipeSets(commits, getStyle)
+			data.pipeSets = graph.GetPipeSets(commits, func(commit *models.Commit) *style.TextStyle {
+				return authors.AuthorStyle(commit.AuthorName)
+			})
 		}
-		pipeSetCache[cacheKey] = pipeSets
+		pipeSetCache[cacheKey] = data
 	}
 
-	return pipeSets
+	return data.pipeSets, data.reachable
 }
 
 // similar to the git_commands.BisectStatus but more gui-focused
@@ -462,6 +517,7 @@ func displayCommit(
 	now time.Time,
 	parseEmoji bool,
 	graphLine string,
+	dimmed bool,
 	fullDescription bool,
 	bisectStatus BisectStatus,
 	bisectInfo *git_commands.BisectInfo,
@@ -473,6 +529,11 @@ func displayCommit(
 	}
 
 	hashColor := getHashColor(commit, diffName, cherryPickedCommitHashSet, bisectStatus, bisectInfo)
+	nameColor := theme.DefaultTextColor
+	if dimmed {
+		hashColor = hashColor.SetDim()
+		nameColor = nameColor.SetDim()
+	}
 	hashString := ""
 	if hashText := getHashText(commit, common.UserConfig().Gui.CommitHashLength); hashText != "" {
 		hashString = hashColor.Sprint(hashText)
@@ -552,7 +613,7 @@ func displayCommit(
 		utils.WithPadding(descriptionString, reservedWidths.description, utils.AlignLeft),
 		utils.WithPadding(actionString, reservedWidths.action, utils.AlignLeft),
 		author,
-		graphLine+mark+tagString+theme.DefaultTextColor.Sprint(name),
+		graphLine+mark+tagString+nameColor.Sprint(name),
 	)
 
 	return cols

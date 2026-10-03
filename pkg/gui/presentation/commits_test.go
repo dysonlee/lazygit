@@ -1,6 +1,7 @@
 package presentation
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/jesseduffield/lazygit/pkg/gui/presentation/graph"
 	"github.com/jesseduffield/lazygit/pkg/gui/presentation/icons"
 	"github.com/jesseduffield/lazygit/pkg/gui/style"
+	"github.com/jesseduffield/lazygit/pkg/theme"
 	"github.com/jesseduffield/lazygit/pkg/utils"
 	"github.com/samber/lo"
 	"github.com/stefanhaller/git-todo-parser/todo"
@@ -681,6 +683,7 @@ func TestGetCommitListDisplayStrings(t *testing.T) {
 					s.startIdx,
 					s.endIdx,
 					s.showGraph,
+					false,
 					s.bisectInfo,
 				)
 
@@ -705,7 +708,8 @@ func TestGraphColorsFollowTheAuthorColors(t *testing.T) {
 		models.NewCommit(hashPool, models.NewCommitOpts{Hash: "authorcolors2", AuthorName: "Jane Doe"}),
 	}
 	renderGraph := func() string {
-		return strings.Join(graph.RenderAux(loadPipesets(commits, "classic"), commits, nil, graph.ClassicGlyphs), "\n")
+		pipeSets, _ := loadPipesets(commits, "classic", false)
+		return strings.Join(graph.RenderAux(pipeSets, commits, nil, graph.ClassicGlyphs), "\n")
 	}
 
 	authors.SetCustomAuthors(map[string]string{"Jane Doe": "red"})
@@ -727,8 +731,65 @@ func TestLaneGraphColorsDoNotFollowTheAuthorColors(t *testing.T) {
 	}
 
 	authors.SetCustomAuthors(map[string]string{"Jane Doe": "red"})
-	renderedGraph := strings.Join(graph.RenderAux(loadPipesets(commits, "lanes"), commits, nil, graph.LaneGlyphs), "\n")
+	pipeSets, _ := loadPipesets(commits, "lanes", false)
+	renderedGraph := strings.Join(graph.RenderAux(pipeSets, commits, nil, graph.LaneGlyphs), "\n")
 
 	assert.Contains(t, renderedGraph, graph.LaneStyle(0).Sprint(graph.LaneGlyphs.Commit))
 	assert.NotContains(t, renderedGraph, style.FgRed.Sprint(graph.LaneGlyphs.Commit))
+}
+
+func TestHeadCommitIndex(t *testing.T) {
+	tests := []struct {
+		name          string
+		extraInfos    []string
+		expectedIndex int
+		expectedFound bool
+	}{
+		{name: "checked out branch", extraInfos: []string{"(origin/main)", "(HEAD -> feature, origin/feature)"}, expectedIndex: 1, expectedFound: true},
+		{name: "detached head", extraInfos: []string{"", "(HEAD, tag: v1.0)"}, expectedIndex: 1, expectedFound: true},
+		{name: "remote head is not head", extraInfos: []string{"(origin/HEAD, origin/main)", "(main)"}, expectedFound: false},
+		{name: "head not loaded", extraInfos: []string{"", "(tag: v1.0)"}, expectedFound: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			hashPool := &utils.StringPool{}
+			commits := lo.Map(test.extraInfos, func(extraInfo string, i int) *models.Commit {
+				return models.NewCommit(hashPool, models.NewCommitOpts{Hash: fmt.Sprintf("head%d", i), ExtraInfo: extraInfo})
+			})
+
+			index, found := headCommitIndex(commits)
+
+			assert.Equal(t, test.expectedFound, found)
+			if test.expectedFound {
+				assert.Equal(t, test.expectedIndex, index)
+			}
+		})
+	}
+}
+
+func TestLaneGraphDimsCommitsNotReachableFromHead(t *testing.T) {
+	oldColorLevel := color.ForceSetColorLevel(terminfo.ColorLevelMillions)
+	defer color.ForceSetColorLevel(oldColorLevel)
+
+	common := common.NewDummyCommon()
+	common.UserConfig().Git.Log.GraphStyle = "lanes"
+	icons.SetNerdFontsVersion("")
+
+	hashPool := &utils.StringPool{}
+	commits := []*models.Commit{
+		models.NewCommit(hashPool, models.NewCommitOpts{Name: "other branch", Hash: "dimother", Parents: []string{"dimbase"}, ExtraInfo: "(other)"}),
+		models.NewCommit(hashPool, models.NewCommitOpts{Name: "head branch", Hash: "dimhead", Parents: []string{"dimbase"}, ExtraInfo: "(HEAD -> main)"}),
+		models.NewCommit(hashPool, models.NewCommitOpts{Name: "base", Hash: "dimbase"}),
+	}
+
+	lines := GetCommitListDisplayStrings(common, commits, nil, "main", false, false, set.New[string](), "", "", "", "",
+		time.Now(), false, nil, 0, len(commits), true, true, git_commands.NewNullBisectInfo())
+	nameColumns := lo.Map(lines, func(line []string, _ int) string { return line[len(line)-1] })
+
+	assert.Contains(t, nameColumns[0], graph.DimmedLaneStyle(0).Sprint("●"))
+	assert.Contains(t, nameColumns[0], theme.DefaultTextColor.SetDim().Sprint("other branch"))
+	assert.Contains(t, nameColumns[1], graph.LaneStyle(1).Sprint("●"))
+	assert.Contains(t, nameColumns[1], theme.DefaultTextColor.Sprint("head branch"))
+	assert.Contains(t, nameColumns[2], theme.DefaultTextColor.Sprint("base"))
 }

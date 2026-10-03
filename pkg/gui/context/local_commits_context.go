@@ -73,6 +73,7 @@ func NewLocalCommitsContext(c *ContextCommon) *LocalCommitsContext {
 			startIdx,
 			endIdx,
 			shouldShowGraph(c),
+			c.UserConfig().Git.Log.DimUnreachableCommits,
 			c.Model().BisectInfo,
 		)
 	}
