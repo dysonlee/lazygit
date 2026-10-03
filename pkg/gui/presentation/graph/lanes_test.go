@@ -31,14 +31,14 @@ func TestRenderLaneGraph(t *testing.T) {
 				{Hash: "h", Parents: []string{"i"}},
 			},
 			expectedOutput: `
-			a ○
-			c │ ○
-			e │ │ ○
-			d │ ○ │
-			b ○─╯ │
-			g ○   │
-			f │   ○
-			h ○───╯`,
+			a ●
+			c │  ●
+			e │  │  ●
+			d │  ●  │
+			b ●──╯  │
+			g ●     │
+			f │     ●
+			h ●─────╯`,
 		},
 		{
 			name: "a merge parent reuses a lane that ends on the same row, drawn as a junction",
@@ -50,11 +50,11 @@ func TestRenderLaneGraph(t *testing.T) {
 				{Hash: "p", Parents: []string{"r"}},
 			},
 			expectedOutput: `
-			x ○
-			y │ ○
-			m ◎─┤
-			q │ ○
-			p ○─╯`,
+			x ●
+			y │  ●
+			m ◉──┤
+			q │  ●
+			p ●──╯`,
 		},
 		{
 			name: "a junction that a horizontal line passes through is drawn as a cross",
@@ -67,12 +67,12 @@ func TestRenderLaneGraph(t *testing.T) {
 				{Hash: "p", Parents: []string{"r"}},
 			},
 			expectedOutput: `
-			a ○
-			b │ ○
-			c │ │ ○
-			m ◎─┼─╯
-			q │ ○
-			p ○─╯`,
+			a ●
+			b │  ●
+			c │  │  ●
+			m ◉──┼──╯
+			q │  ●
+			p ●──╯`,
 		},
 		{
 			name: "a commit stays in the lane of its first-parent chain rather than the leftmost lane waiting for it",
@@ -83,10 +83,10 @@ func TestRenderLaneGraph(t *testing.T) {
 				{Hash: "p", Parents: []string{"q"}},
 			},
 			expectedOutput: `
-			m ◎─╮
-			c │ │ ○
-			x │ ╰─○
-			p ○───╯`,
+			m ◉──╮
+			c │  │  ●
+			x │  ╰──●
+			p ●─────╯`,
 		},
 		{
 			name: "a root commit frees its lane for the next branch tip",
@@ -97,10 +97,10 @@ func TestRenderLaneGraph(t *testing.T) {
 				{Hash: "b", Parents: []string{}},
 			},
 			expectedOutput: `
-			a ○
-			o │ ○
-			n │ ○
-			b ○─╯`,
+			a ●
+			o │  ●
+			n │  ●
+			b ●──╯`,
 		},
 		{
 			name: "lanes don't move left into the space left by converging lanes",
@@ -115,14 +115,14 @@ func TestRenderLaneGraph(t *testing.T) {
 				{Hash: "C", Parents: []string{"D"}},
 			},
 			expectedOutput: `
-			1 ○
-			2 ◎─╮
-			3 ◎─│─╮
-			5 ◎─│─│─╮
-			7 ◎─│─│─│─╮
-			4 ○─┴─╯ │ │
-			B ○     │ │
-			C ○     │ │`,
+			1 ●
+			2 ◉──╮
+			3 ◉──│──╮
+			5 ◉──│──│──╮
+			7 ◉──│──│──│──╮
+			4 ●──┴──╯  │  │
+			B ●        │  │
+			C ●        │  │`,
 		},
 	}
 

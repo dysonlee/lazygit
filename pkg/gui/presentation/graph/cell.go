@@ -40,15 +40,18 @@ var ClassicGlyphs = &Glyphs{
 	JunctionThrough: "│",
 }
 
-// In the lane layout, a lane can end at a merge commit on the same row
-// where the commit's edge to another parent starts in that lane; the
-// junction glyphs show that both of them connect to the commit, as opposed
-// to a lane that merely crosses the horizontal line.
+// The lane layout uses bigger nodes and wider spacing between lanes, so that
+// each branch stands out as a line of its own.
+//
+// A lane can end at a merge commit on the same row where the commit's edge to
+// another parent starts in that lane; the junction glyphs show that both of
+// them connect to the commit, as opposed to a lane that merely crosses the
+// horizontal line.
 var LaneGlyphs = &Glyphs{
-	Commit:          string(CommitSymbol),
-	Merge:           string(MergeSymbol),
-	Horizontal:      "─",
-	Blank:           " ",
+	Commit:          "●",
+	Merge:           "◉",
+	Horizontal:      "──",
+	Blank:           "  ",
 	Junction:        "┤",
 	JunctionThrough: "┼",
 }
