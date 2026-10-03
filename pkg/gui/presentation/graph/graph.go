@@ -365,6 +365,8 @@ func renderPipeSet(
 		}
 	}
 
+	markJunctions(cells, pipes, commitPos)
+
 	cType := COMMIT
 	if isMerge {
 		cType = MERGE
@@ -379,6 +381,22 @@ func renderPipeSet(
 		cell.render(writer, glyphs)
 	}
 	return writer.String()
+}
+
+// markJunctions marks the cells other than the commit's own where an edge
+// ends at the commit and another edge from the commit starts.
+func markJunctions(cells []*Cell, pipes []Pipe, commitPos int16) {
+	for _, start := range pipes {
+		if start.kind != STARTS || start.toPos == commitPos {
+			continue
+		}
+		for _, end := range pipes {
+			if end.kind == TERMINATES && end.fromPos == start.toPos {
+				cells[start.toPos].setJunction()
+				break
+			}
+		}
+	}
 }
 
 func equalHashes(a, b *string) bool {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/gookit/color"
 	"github.com/jesseduffield/lazygit/pkg/gui/style"
+	"github.com/samber/lo"
 )
 
 const (
@@ -22,13 +23,34 @@ type Glyphs struct {
 	Merge      string
 	Horizontal string
 	Blank      string
+	// A cell where an edge ends at the row's commit and another edge from the
+	// commit starts, i.e. where both the line above and the line below connect
+	// to the commit; Junction is used when the horizontal line ends in the
+	// cell and JunctionThrough when it continues to the right.
+	Junction        string
+	JunctionThrough string
 }
 
 var ClassicGlyphs = &Glyphs{
-	Commit:     string(CommitSymbol),
-	Merge:      string(MergeSymbol),
-	Horizontal: "─",
-	Blank:      " ",
+	Commit:          string(CommitSymbol),
+	Merge:           string(MergeSymbol),
+	Horizontal:      "─",
+	Blank:           " ",
+	Junction:        "│",
+	JunctionThrough: "│",
+}
+
+// In the lane layout, a lane can end at a merge commit on the same row
+// where the commit's edge to another parent starts in that lane; the
+// junction glyphs show that both of them connect to the commit, as opposed
+// to a lane that merely crosses the horizontal line.
+var LaneGlyphs = &Glyphs{
+	Commit:          string(CommitSymbol),
+	Merge:           string(MergeSymbol),
+	Horizontal:      "─",
+	Blank:           " ",
+	Junction:        "┤",
+	JunctionThrough: "┼",
 }
 
 type cellType int
@@ -41,6 +63,7 @@ const (
 
 type Cell struct {
 	up, down, left, right bool
+	junction              bool
 	cellType              cellType
 	rightStyle            *style.TextStyle
 	style                 *style.TextStyle
@@ -50,7 +73,11 @@ func (cell *Cell) render(writer io.StringWriter, glyphs *Glyphs) {
 	var first string
 	switch cell.cellType {
 	case CONNECTION:
-		first = getBoxDrawingChar(cell.up, cell.down, cell.left, cell.right)
+		if cell.junction && cell.up && cell.down {
+			first = lo.Ternary(cell.right, glyphs.JunctionThrough, glyphs.Junction)
+		} else {
+			first = getBoxDrawingChar(cell.up, cell.down, cell.left, cell.right)
+		}
 	case COMMIT:
 		first = glyphs.Commit
 	case MERGE:
@@ -153,6 +180,11 @@ func (cell *Cell) setRight(style *style.TextStyle, override bool) *Cell {
 
 func (cell *Cell) setStyle(style *style.TextStyle) *Cell {
 	cell.style = style
+	return cell
+}
+
+func (cell *Cell) setJunction() *Cell {
+	cell.junction = true
 	return cell
 }
 
