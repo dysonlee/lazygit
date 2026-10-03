@@ -15,6 +15,7 @@ type lane struct {
 	fromHash *string
 	// nil when the lane is free
 	toHash *string
+	color  int
 	style  *style.TextStyle
 	// whether the edge goes from a commit to its first parent, as opposed to
 	// from a merge commit to one of its other parents
@@ -36,23 +37,52 @@ func (self lane) pipe(fromPos, toPos int, kind PipeKind) Pipe {
 	}
 }
 
+// The state of the lane layout after a row of the graph
+type laneLayout struct {
+	lanes []lane
+	// the color to try first for the next branch
+	nextColor int
+}
+
 // GetLanePipeSets lays out the graph in fixed lanes and returns, for each
-// commit, the pipes that RenderAux draws for its row.
-func GetLanePipeSets(commits []*models.Commit, getStyle func(c *models.Commit) *style.TextStyle) [][]Pipe {
-	lanes := []lane{}
+// commit, the pipes that RenderAux draws for its row. Every branch gets its
+// own color: a commit takes the color of the lane it continues, and each new
+// branch tip or merged branch gets the next lane color in turn. getStyle
+// returns the style for one of these colors (in the range [0,
+// LaneColorCount)) on the edges starting at the given commit.
+func GetLanePipeSets(commits []*models.Commit, getStyle func(color int, c *models.Commit) *style.TextStyle) [][]Pipe {
+	layout := laneLayout{}
 
 	return lo.Map(commits, func(commit *models.Commit, _ int) []Pipe {
 		var pipes []Pipe
-		lanes, pipes = getNextLanePipes(lanes, commit, getStyle)
+		layout, pipes = layout.next(commit, getStyle)
 		return pipes
 	})
 }
 
-func getNextLanePipes(prevLanes []lane, commit *models.Commit, getStyle func(c *models.Commit) *style.TextStyle) ([]lane, []Pipe) {
-	lanes := slices.Clone(prevLanes)
+func (self laneLayout) next(commit *models.Commit, getStyle func(color int, c *models.Commit) *style.TextStyle) (laneLayout, []Pipe) {
+	lanes := slices.Clone(self.lanes)
+	nextColor := self.nextColor
+	// A new branch avoids the colors of the branches on this row and the
+	// previous one, so that it can be told apart from a branch that ended
+	// in the same column.
+	newBranchColor := func() int {
+		var color int
+		color, nextColor = pickLaneColor(nextColor, func(color int) bool {
+			return lanesUseColor(self.lanes, color) || lanesUseColor(lanes, color)
+		})
+		return color
+	}
+
 	pos := commitLane(lanes, commit)
 	if pos == len(lanes) {
 		lanes = append(lanes, lane{})
+	}
+	var commitColor int
+	if equalHashes(lanes[pos].toHash, commit.HashPtr()) {
+		commitColor = lanes[pos].color
+	} else {
+		commitColor = newBranchColor()
 	}
 
 	pipes := make([]Pipe, 0, len(lanes)+len(commit.ParentPtrs()))
@@ -69,14 +99,19 @@ func getNextLanePipes(prevLanes []lane, commit *models.Commit, getStyle func(c *
 		}
 	}
 
-	commitStyle := getStyle(commit)
 	if commit.IsFirstCommit() {
 		// renderPipeSet finds a commit's position from the pipe starting at
 		// it, so a root commit gets one too, but its lane stays free.
-		edge := lane{fromHash: commit.HashPtr(), toHash: &EmptyTreeCommitHash, style: commitStyle}
+		edge := lane{fromHash: commit.HashPtr(), toHash: &EmptyTreeCommitHash, style: getStyle(commitColor, commit)}
 		pipes = append(pipes, edge.pipe(pos, pos, STARTS))
 	} else {
-		lanes[pos] = lane{fromHash: commit.HashPtr(), toHash: commit.ParentPtrs()[0], style: commitStyle, firstParent: true}
+		lanes[pos] = lane{
+			fromHash:    commit.HashPtr(),
+			toHash:      commit.ParentPtrs()[0],
+			color:       commitColor,
+			style:       getStyle(commitColor, commit),
+			firstParent: true,
+		}
 		pipes = append(pipes, lanes[pos].pipe(pos, pos, STARTS))
 	}
 
@@ -85,7 +120,8 @@ func getNextLanePipes(prevLanes []lane, commit *models.Commit, getStyle func(c *
 		if mergeLane == len(lanes) {
 			lanes = append(lanes, lane{})
 		}
-		lanes[mergeLane] = lane{fromHash: commit.HashPtr(), toHash: parentHash, style: commitStyle}
+		color := newBranchColor()
+		lanes[mergeLane] = lane{fromHash: commit.HashPtr(), toHash: parentHash, color: color, style: getStyle(color, commit)}
 		pipes = append(pipes, lanes[mergeLane].pipe(pos, mergeLane, STARTS))
 	}
 
@@ -95,7 +131,11 @@ func getNextLanePipes(prevLanes []lane, commit *models.Commit, getStyle func(c *
 
 	sortPipes(pipes)
 
-	return lanes, pipes
+	return laneLayout{lanes: lanes, nextColor: nextColor}, pipes
+}
+
+func lanesUseColor(lanes []lane, color int) bool {
+	return lo.ContainsBy(lanes, func(l lane) bool { return !l.isFree() && l.color == color })
 }
 
 // commitLane returns the lane a commit is drawn in. Preferring a lane that

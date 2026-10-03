@@ -5,10 +5,10 @@ import (
 
 	"github.com/gookit/color"
 	"github.com/jesseduffield/lazygit/pkg/commands/models"
-	"github.com/jesseduffield/lazygit/pkg/gui/presentation/authors"
 	"github.com/jesseduffield/lazygit/pkg/gui/style"
 	"github.com/jesseduffield/lazygit/pkg/utils"
 	"github.com/samber/lo"
+	"github.com/stretchr/testify/assert"
 	"github.com/xo/terminfo"
 )
 
@@ -133,7 +133,7 @@ func TestRenderLaneGraph(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			hashPool := &utils.StringPool{}
 
-			getStyle := func(c *models.Commit) *style.TextStyle { return &style.FgDefault }
+			getStyle := func(int, *models.Commit) *style.TextStyle { return &style.FgDefault }
 			commits := lo.Map(test.commitOpts,
 				func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
 			pipeSets := GetLanePipeSets(commits, getStyle)
@@ -151,11 +151,55 @@ func BenchmarkRenderLaneGraph(b *testing.B) {
 	hashPool := &utils.StringPool{}
 
 	commits := generateCommits(hashPool, 50)
-	getStyle := func(commit *models.Commit) *style.TextStyle {
-		return authors.AuthorStyle(commit.AuthorName)
+	getStyle := func(color int, _ *models.Commit) *style.TextStyle {
+		return LaneStyle(color)
 	}
 	b.ResetTimer()
 	for b.Loop() {
 		RenderAux(GetLanePipeSets(commits, getStyle), commits, hashPool.Add("selected"), LaneGlyphs)
+	}
+}
+
+func TestLaneGraphColors(t *testing.T) {
+	tests := []struct {
+		name           string
+		commitOpts     []models.NewCommitOpts
+		expectedColors []int
+	}{
+		{
+			name: "every branch gets the next color, even when it reuses the column of the previous one",
+			commitOpts: []models.NewCommitOpts{
+				{Hash: "m1", Parents: []string{"m2", "f1"}},
+				{Hash: "f1", Parents: []string{"m2"}},
+				{Hash: "m2", Parents: []string{"m3", "f2"}},
+				{Hash: "f2", Parents: []string{"m3"}},
+				{Hash: "m3", Parents: []string{"x", "f3"}},
+				{Hash: "f3", Parents: []string{"x"}},
+			},
+			expectedColors: []int{0, 1, 0, 2, 0, 3},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			hashPool := &utils.StringPool{}
+			commits := lo.Map(test.commitOpts,
+				func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
+
+			colorStyles := lo.Times(LaneColorCount, func(int) *style.TextStyle { return &style.TextStyle{} })
+			getStyle := func(color int, c *models.Commit) *style.TextStyle { return colorStyles[color] }
+			pipeSets := GetLanePipeSets(commits, getStyle)
+
+			// The color of a commit is the color of the pipe starting at it
+			// in its own lane.
+			colors := lo.Map(commits, func(commit *models.Commit, i int) int {
+				pipe, _ := lo.Find(pipeSets[i], func(pipe Pipe) bool {
+					return pipe.kind == STARTS && pipe.fromHash == commit.HashPtr() && pipe.fromPos == pipe.toPos
+				})
+				return lo.IndexOf(colorStyles, pipe.style)
+			})
+
+			assert.Equal(t, test.expectedColors, colors)
+		})
 	}
 }

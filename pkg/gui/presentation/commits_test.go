@@ -692,3 +692,21 @@ func TestGraphColorsFollowTheAuthorColors(t *testing.T) {
 	authors.SetCustomAuthors(map[string]string{"Jane Doe": "blue"})
 	assert.Contains(t, renderGraph(), style.FgBlue.Sprint("○"))
 }
+
+func TestLaneGraphColorsDoNotFollowTheAuthorColors(t *testing.T) {
+	oldColorLevel := color.ForceSetColorLevel(terminfo.ColorLevelMillions)
+	defer color.ForceSetColorLevel(oldColorLevel)
+	t.Cleanup(func() { authors.SetCustomAuthors(nil) })
+
+	hashPool := &utils.StringPool{}
+	commits := []*models.Commit{
+		models.NewCommit(hashPool, models.NewCommitOpts{Hash: "lanecolors1", AuthorName: "Jane Doe", Parents: []string{"lanecolors2"}}),
+		models.NewCommit(hashPool, models.NewCommitOpts{Hash: "lanecolors2", AuthorName: "Jane Doe"}),
+	}
+
+	authors.SetCustomAuthors(map[string]string{"Jane Doe": "red"})
+	renderedGraph := strings.Join(graph.RenderAux(loadPipesets(commits, "lanes"), commits, nil, graph.LaneGlyphs), "\n")
+
+	assert.Contains(t, renderedGraph, graph.LaneStyle(0).Sprint(graph.LaneGlyphs.Commit))
+	assert.NotContains(t, renderedGraph, style.FgRed.Sprint(graph.LaneGlyphs.Commit))
+}

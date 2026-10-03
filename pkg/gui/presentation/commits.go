@@ -334,7 +334,9 @@ func loadPipesets(commits []*models.Commit, graphStyle string) [][]graph.Pipe {
 			return authors.AuthorStyle(commit.AuthorName)
 		}
 		if graphStyle == "lanes" {
-			pipeSets = graph.GetLanePipeSets(commits, getStyle)
+			pipeSets = graph.GetLanePipeSets(commits, func(color int, _ *models.Commit) *style.TextStyle {
+				return graph.LaneStyle(color)
+			})
 		} else {
 			pipeSets = graph.GetPipeSets(commits, getStyle)
 		}
