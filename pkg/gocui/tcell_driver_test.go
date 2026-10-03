@@ -55,3 +55,16 @@ func resetMouseState() {
 	lastX = 0
 	lastY = 0
 }
+
+func TestTcellStyleWithUnderlineColor(t *testing.T) {
+	st := getTcellStyle(oldStyle{fg: ColorRed | AttrUnderline, bg: ColorDefault, ul: NewRGBColor(1, 2, 3), outputMode: OutputTrue})
+
+	assert.Equal(t, tcell.UnderlineStyleSolid, st.GetUnderlineStyle())
+	assert.Equal(t, tcell.NewRGBColor(1, 2, 3), st.GetUnderlineColor())
+}
+
+func TestTcellStyleIgnoresUnderlineColorWithoutUnderline(t *testing.T) {
+	st := getTcellStyle(oldStyle{fg: ColorRed, bg: ColorDefault, ul: NewRGBColor(1, 2, 3), outputMode: OutputTrue})
+
+	assert.Equal(t, tcell.UnderlineStyleNone, st.GetUnderlineStyle())
+}

@@ -274,3 +274,27 @@ func parseEscRunes(t *testing.T, ei *escapeInterpreter, runes string) {
 		assert.NoError(t, err)
 	}
 }
+
+func TestParseOneUnderlineColour(t *testing.T) {
+	scenarios := []struct {
+		name            string
+		outputMode      OutputMode
+		input           string
+		expectedFg      Attribute
+		expectedUlColor Attribute
+	}{
+		{"rgb", OutputTrue, "\x1b[4;58;2;1;2;3m", ColorDefault | AttrUnderline, NewRGBColor(1, 2, 3)},
+		{"256 colors", Output256, "\x1b[58;5;200m", ColorDefault, Get256Color(200)},
+		{"reset", OutputTrue, "\x1b[58;2;1;2;3;59m", ColorDefault, ColorDefault},
+		{"reset all", OutputTrue, "\x1b[58;2;1;2;3;0m", ColorDefault, ColorDefault},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			ei := newEscapeInterpreter(scenario.outputMode)
+			parseEscRunes(t, ei, scenario.input)
+			assert.Equal(t, scenario.expectedFg, ei.curFgColor)
+			assert.Equal(t, scenario.expectedUlColor, ei.curUlColor)
+		})
+	}
+}

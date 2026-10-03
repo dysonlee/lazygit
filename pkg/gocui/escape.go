@@ -16,9 +16,11 @@ type escapeInterpreter struct {
 	curch                  string
 	csiParam               []string
 	curFgColor, curBgColor Attribute
-	mode                   OutputMode
-	instruction            instruction
-	hyperlink              strings.Builder
+	// the color of the underline, if the underline attribute is set
+	curUlColor  Attribute
+	mode        OutputMode
+	instruction instruction
+	hyperlink   strings.Builder
 
 	// ConPTY emits cursor-positioning escapes (CUP) to skip over blank
 	// rows rather than emitting LFs for them. To convert those into row
@@ -100,6 +102,8 @@ const (
 	defaultForegroundColor int = 39
 	setBackgroundColor     int = 48
 	defaultBackgroundColor int = 49
+	setUnderlineColor      int = 58
+	defaultUnderlineColor  int = 59
 )
 
 var (
@@ -135,6 +139,7 @@ func newEscapeInterpreter(mode OutputMode) *escapeInterpreter {
 		state:       stateNone,
 		curFgColor:  ColorDefault,
 		curBgColor:  ColorDefault,
+		curUlColor:  ColorDefault,
 		mode:        mode,
 		instruction: noInstruction{},
 		screenRow:   1,
@@ -150,6 +155,7 @@ func (ei *escapeInterpreter) reset() {
 	ei.state = stateNone
 	ei.curFgColor = ColorDefault
 	ei.curBgColor = ColorDefault
+	ei.curUlColor = ColorDefault
 	ei.csiParam = nil
 }
 
@@ -338,9 +344,9 @@ func (ei *escapeInterpreter) parseOne(ch []byte) (isEscape bool, err error) {
 			// hitting the empty param). Snapshot the colors beforehand
 			// and restore them on error so a malformed SGR is truly a
 			// no-op rather than a partial apply.
-			savedFg, savedBg := ei.curFgColor, ei.curBgColor
+			savedFg, savedBg, savedUl := ei.curFgColor, ei.curBgColor, ei.curUlColor
 			if err := ei.outputCSI(); err != nil {
-				ei.curFgColor, ei.curBgColor = savedFg, savedBg
+				ei.curFgColor, ei.curBgColor, ei.curUlColor = savedFg, savedBg, savedUl
 			}
 			ei.state = stateNone
 			ei.csiParam = nil
@@ -491,6 +497,7 @@ func (ei *escapeInterpreter) outputCSI() error {
 		case p == 0: // reset style and color
 			ei.curFgColor = ColorDefault
 			ei.curBgColor = ColorDefault
+			ei.curUlColor = ColorDefault
 		case p >= 1 && p <= 9: // set style
 			ei.curFgColor |= getFontEffect(p)
 		case p >= 21 && p <= 29: // reset style
@@ -525,6 +532,16 @@ func (ei *escapeInterpreter) outputCSI() error {
 		case p == defaultBackgroundColor: // reset background color
 			ei.curBgColor &= AttrStyleBits
 			ei.curBgColor |= ColorDefault
+		case p == setUnderlineColor: // set underline color (256-color or true color)
+			var color Attribute
+			var err error
+			color, skip, err = ei.csiColor(ei.csiParam[i:])
+			if err != nil {
+				return err
+			}
+			ei.curUlColor = color
+		case p == defaultUnderlineColor: // reset underline color
+			ei.curUlColor = ColorDefault
 		case p >= 90 && p <= 97: // set bright foreground color
 			ei.curFgColor &= AttrStyleBits
 			ei.curFgColor |= Get256Color(int32(p) - 90 + 8)

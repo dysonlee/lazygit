@@ -820,3 +820,12 @@ func TestApplySelTextColor(t *testing.T) {
 		})
 	}
 }
+
+func TestWritingAnUnderlineColor(t *testing.T) {
+	v := NewView("name", 0, 0, 10, 10, OutputTrue)
+
+	v.writeString("\x1b[4;58;2;1;2;3mx\x1b[0my")
+
+	assert.Equal(t, NewRGBColor(1, 2, 3), v.buf.lines[0].cells[0].ulColor)
+	assert.Equal(t, ColorDefault, v.buf.lines[0].cells[1].ulColor)
+}

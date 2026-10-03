@@ -593,7 +593,9 @@ type cell struct {
 	chr              string // a grapheme cluster
 	width            int    // number of terminal cells occupied by chr (always 1 or 2)
 	bgColor, fgColor Attribute
-	hyperlink        string
+	// the color of the underline, if fgColor has AttrUnderline
+	ulColor   Attribute
+	hyperlink string
 }
 
 type cells []cell
@@ -708,7 +710,7 @@ func (v *View) Name() string {
 // setCharacter sets a character (grapheme cluster) at the given point relative to the view. It applies
 // the specified colors, taking into account if the cell must be highlighted. Also, it checks if the
 // position is valid.
-func (v *View) setCharacter(x, y int, ch string, fgColor, bgColor Attribute, isWindowFocused bool) {
+func (v *View) setCharacter(x, y int, ch string, fgColor, bgColor, ulColor Attribute, isWindowFocused bool) {
 	maxX, maxY := v.Size()
 	if x < 0 || x >= maxX || y < 0 || y >= maxY {
 		return
@@ -717,6 +719,7 @@ func (v *View) setCharacter(x, y int, ch string, fgColor, bgColor Attribute, isW
 	if v.Mask != "" {
 		fgColor = v.FgColor
 		bgColor = v.BgColor
+		ulColor = ColorDefault
 		ch = v.Mask
 	} else if v.Highlight {
 		rangeSelectStart := v.cy
@@ -755,7 +758,7 @@ func (v *View) setCharacter(x, y int, ch string, fgColor, bgColor Attribute, isW
 		ch = " "
 	}
 
-	tcellSetCell(v.x0+x+1, v.y0+y+1, ch, fgColor, bgColor, v.outMode)
+	tcellSetCell(v.x0+x+1, v.y0+y+1, ch, fgColor, bgColor, ulColor, v.outMode)
 }
 
 // SetCursor sets the cursor position of the view at the given point,
@@ -1166,6 +1169,7 @@ func (b *viewBuffer) parseInput(v *View, ch []byte, width int, x int, _ int) (bo
 		c := cell{
 			fgColor:   b.ei.curFgColor,
 			bgColor:   b.ei.curBgColor,
+			ulColor:   b.ei.curUlColor,
 			hyperlink: b.ei.hyperlink.String(),
 			chr:       string(ch),
 			width:     width,
@@ -1587,7 +1591,7 @@ func (v *View) draw(isWindowFocused bool) {
 				fgColor |= AttrUnderline
 			}
 
-			v.setCharacter(x, y, c.chr, fgColor, bgColor, isWindowFocused)
+			v.setCharacter(x, y, c.chr, fgColor, bgColor, c.ulColor, isWindowFocused)
 
 			x += c.width
 			cellIdx++
@@ -1727,7 +1731,7 @@ func (v *View) clearRunes() {
 	maxX, maxY := v.InnerSize()
 	for x := range maxX {
 		for y := range maxY {
-			tcellSetCell(v.x0+x+1, v.y0+y+1, " ", v.FgColor, v.BgColor, v.outMode)
+			tcellSetCell(v.x0+x+1, v.y0+y+1, " ", v.FgColor, v.BgColor, ColorDefault, v.outMode)
 		}
 	}
 }

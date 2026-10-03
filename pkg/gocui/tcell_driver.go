@@ -14,8 +14,10 @@ var Screen tcell.Screen
 
 // oldStyle is a representation of how a cell would be styled when we were using termbox
 type oldStyle struct {
-	fg         Attribute
-	bg         Attribute
+	fg Attribute
+	bg Attribute
+	// the color of the underline, if fg or bg has AttrUnderline
+	ul         Attribute
 	outputMode OutputMode
 }
 
@@ -108,8 +110,8 @@ func (g *Gui) tcellInitSimulation(width int, height int) error {
 
 // tcellSetCell sets the character cell at a given location to the given
 // content (grapheme cluster) and attributes using provided OutputMode
-func tcellSetCell(x, y int, ch string, fg, bg Attribute, outputMode OutputMode) {
-	st := getTcellStyle(oldStyle{fg: fg, bg: bg, outputMode: outputMode})
+func tcellSetCell(x, y int, ch string, fg, bg, ul Attribute, outputMode OutputMode) {
+	st := getTcellStyle(oldStyle{fg: fg, bg: bg, ul: ul, outputMode: outputMode})
 	Screen.Put(x, y, ch, st)
 }
 
@@ -125,6 +127,9 @@ func getTcellStyle(input oldStyle) tcell.Style {
 	if input.bg != ColorDefault {
 		st = st.Background(getTcellColor(input.bg, input.outputMode))
 		st = setTcellFontEffectStyle(st, input.bg)
+	}
+	if input.ul != ColorDefault && st.GetUnderlineStyle() != tcell.UnderlineStyleNone {
+		st = st.Underline(getTcellColor(input.ul, input.outputMode))
 	}
 
 	return st
