@@ -470,7 +470,7 @@ func TestRenderPipeSet(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			actualStr := renderPipeSet(test.pipes, pool("selected"), test.prevCommit, ClassicGlyphs)
+			actualStr := renderPipeSet(test.pipes, pool("selected"), test.prevCommit, ClassicGlyphs, 0)
 			t.Log("actual cells:")
 			t.Log(actualStr)
 			expectedStr := ""
@@ -548,8 +548,8 @@ func TestGetNextPipes(t *testing.T) {
 		getStyle := func(c *models.Commit) *style.TextStyle { return &style.FgDefault }
 		pipes := getNextPipes(test.prevPipes, test.commit, getStyle)
 		// rendering cells so that it's easier to see what went wrong
-		actualStr := renderPipeSet(pipes, pool("selected"), nil, ClassicGlyphs)
-		expectedStr := renderPipeSet(test.expected, pool("selected"), nil, ClassicGlyphs)
+		actualStr := renderPipeSet(pipes, pool("selected"), nil, ClassicGlyphs, 0)
+		expectedStr := renderPipeSet(test.expected, pool("selected"), nil, ClassicGlyphs, 0)
 		t.Log("expected cells:")
 		t.Log(expectedStr)
 		t.Log("actual cells:")

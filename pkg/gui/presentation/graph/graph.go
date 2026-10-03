@@ -72,6 +72,11 @@ func GetPipeSets(commits []*models.Commit, getStyle func(c *models.Commit) *styl
 func RenderAux(pipeSets [][]Pipe, commits []*models.Commit, selectedCommitHashPtr *string, glyphs *Glyphs) []string {
 	maxProcs := runtime.GOMAXPROCS(0)
 
+	minCells := 0
+	if glyphs.AlignRows {
+		minCells = widestRow(pipeSets)
+	}
+
 	// splitting up the rendering of the graph into multiple goroutines allows us to render the graph in parallel
 	chunks := make([][]string, maxProcs)
 	perProc := len(pipeSets) / maxProcs
@@ -93,7 +98,7 @@ func RenderAux(pipeSets [][]Pipe, commits []*models.Commit, selectedCommitHashPt
 				if k > 0 {
 					prevCommit = commits[k-1]
 				}
-				line := renderPipeSet(pipeSet, selectedCommitHashPtr, prevCommit, glyphs)
+				line := renderPipeSet(pipeSet, selectedCommitHashPtr, prevCommit, glyphs, minCells)
 				innerLines = append(innerLines, line)
 			}
 			chunks[i] = innerLines
@@ -104,6 +109,17 @@ func RenderAux(pipeSets [][]Pipe, commits []*models.Commit, selectedCommitHashPt
 	wg.Wait()
 
 	return lo.Flatten(chunks)
+}
+
+// widestRow returns the number of cells of the widest of the rows.
+func widestRow(pipeSets [][]Pipe) int {
+	cells := 0
+	for _, pipes := range pipeSets {
+		for _, pipe := range pipes {
+			cells = max(cells, int(pipe.right())+1)
+		}
+	}
+	return cells
 }
 
 func getNextPipes(prevPipes []Pipe, commit *models.Commit, getStyle func(c *models.Commit) *style.TextStyle) []Pipe {
@@ -281,6 +297,7 @@ func renderPipeSet(
 	selectedCommitHashPtr *string,
 	prevCommit *models.Commit,
 	glyphs *Glyphs,
+	minCells int,
 ) string {
 	maxPos := int16(0)
 	commitPos := int16(0)
@@ -299,7 +316,7 @@ func renderPipeSet(
 	}
 	isMerge := startCount > 1
 
-	cells := lo.Map(lo.Range(int(maxPos)+1), func(i int, _ int) *Cell {
+	cells := lo.Map(lo.Range(max(int(maxPos)+1, minCells)), func(i int, _ int) *Cell {
 		return &Cell{cellType: CONNECTION, style: &style.FgDefault}
 	})
 

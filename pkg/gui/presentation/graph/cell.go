@@ -35,6 +35,9 @@ type Glyphs struct {
 	// other lines that they run through, rather than only being drawn in the
 	// highlight color.
 	SelectionHidesOtherLines bool
+	// Whether all rows are padded to the width of the widest one, so that
+	// whatever follows the graph lines up in a column.
+	AlignRows bool
 }
 
 var ClassicGlyphs = &Glyphs{
@@ -70,6 +73,10 @@ var LaneGlyphs = &Glyphs{
 	// commit's lines apart, and hiding parts of other lines would make them
 	// look as if they ended there.
 	SelectionHidesOtherLines: false,
+
+	// The lanes make the graph wide, and the messages are easier to scan
+	// when they line up.
+	AlignRows: true,
 }
 
 // With a Nerd Font, the lane graph uses icon font dots, which fill the cell
