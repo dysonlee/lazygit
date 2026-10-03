@@ -75,6 +75,20 @@ func TestRenderLaneGraph(t *testing.T) {
 			p ●──╯`,
 		},
 		{
+			name: "a merge edge joins a lane that is already waiting for the parent",
+			commitOpts: []models.NewCommitOpts{
+				{Hash: "a", Parents: []string{"p"}},
+				{Hash: "m", Parents: []string{"q", "p"}},
+				{Hash: "q", Parents: []string{"p"}},
+				{Hash: "p", Parents: []string{"r"}},
+			},
+			expectedOutput: `
+			a ●
+			m ├──◉
+			q │  ●
+			p ●──╯`,
+		},
+		{
 			name: "a commit stays in the lane of its first-parent chain rather than the leftmost lane waiting for it",
 			commitOpts: []models.NewCommitOpts{
 				{Hash: "m", Parents: []string{"p", "x"}},
@@ -117,12 +131,12 @@ func TestRenderLaneGraph(t *testing.T) {
 			expectedOutput: `
 			1 ●
 			2 ◉──╮
-			3 ◉──│──╮
-			5 ◉──│──│──╮
-			7 ◉──│──│──│──╮
-			4 ●──┴──╯  │  │
-			B ●        │  │
-			C ●        │  │`,
+			3 ◉──┤
+			5 ◉──│──╮
+			7 ◉──│──│──╮
+			4 ●──╯  │  │
+			B ●     │  │
+			C ●     │  │`,
 		},
 	}
 

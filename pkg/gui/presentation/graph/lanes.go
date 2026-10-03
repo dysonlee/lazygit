@@ -116,6 +116,14 @@ func (self laneLayout) next(commit *models.Commit, getStyle func(color int, c *m
 	}
 
 	for _, parentHash := range lo.Drop(commit.ParentPtrs(), 1) {
+		// If another lane already leads to the parent, the merge edge joins it
+		// rather than running alongside it in a lane of its own.
+		if joinLane := slices.IndexFunc(lanes, func(l lane) bool { return equalHashes(l.toHash, parentHash) }); joinLane != -1 && joinLane != pos {
+			edge := lane{fromHash: commit.HashPtr(), toHash: parentHash, style: lanes[joinLane].style}
+			pipes = append(pipes, edge.pipe(pos, joinLane, STARTS))
+			continue
+		}
+
 		mergeLane := mergeParentLane(lanes, pos)
 		if mergeLane == len(lanes) {
 			lanes = append(lanes, lane{})

@@ -6,7 +6,6 @@ import (
 
 	"github.com/gookit/color"
 	"github.com/jesseduffield/lazygit/pkg/gui/style"
-	"github.com/samber/lo"
 )
 
 const (
@@ -23,21 +22,24 @@ type Glyphs struct {
 	Merge      string
 	Horizontal string
 	Blank      string
-	// A cell where an edge ends at the row's commit and another edge from the
-	// commit starts, i.e. where both the line above and the line below connect
-	// to the commit; Junction is used when the horizontal line ends in the
-	// cell and JunctionThrough when it continues to the right.
-	Junction        string
-	JunctionThrough string
+	// A cell where an edge from the row's commit starts in a vertical line
+	// that is there anyway, i.e. where both the line above and the line below
+	// connect to the commit. Junction is used when the horizontal line comes
+	// from the left and ends in the cell, JunctionFromRight when it comes from
+	// the right, and JunctionThrough when it passes through.
+	Junction          string
+	JunctionFromRight string
+	JunctionThrough   string
 }
 
 var ClassicGlyphs = &Glyphs{
-	Commit:          string(CommitSymbol),
-	Merge:           string(MergeSymbol),
-	Horizontal:      "─",
-	Blank:           " ",
-	Junction:        "│",
-	JunctionThrough: "│",
+	Commit:            string(CommitSymbol),
+	Merge:             string(MergeSymbol),
+	Horizontal:        "─",
+	Blank:             " ",
+	Junction:          "│",
+	JunctionFromRight: "│",
+	JunctionThrough:   "│",
 }
 
 // The lane layout uses bigger nodes and wider spacing between lanes, so that
@@ -48,12 +50,13 @@ var ClassicGlyphs = &Glyphs{
 // them connect to the commit, as opposed to a lane that merely crosses the
 // horizontal line.
 var LaneGlyphs = &Glyphs{
-	Commit:          "●",
-	Merge:           "◉",
-	Horizontal:      "──",
-	Blank:           "  ",
-	Junction:        "┤",
-	JunctionThrough: "┼",
+	Commit:            "●",
+	Merge:             "◉",
+	Horizontal:        "──",
+	Blank:             "  ",
+	Junction:          "┤",
+	JunctionFromRight: "├",
+	JunctionThrough:   "┼",
 }
 
 type cellType int
@@ -77,7 +80,7 @@ func (cell *Cell) render(writer io.StringWriter, glyphs *Glyphs) {
 	switch cell.cellType {
 	case CONNECTION:
 		if cell.junction && cell.up && cell.down {
-			first = lo.Ternary(cell.right, glyphs.JunctionThrough, glyphs.Junction)
+			first = junctionGlyph(cell.left, cell.right, glyphs)
 		} else {
 			first = getBoxDrawingChar(cell.up, cell.down, cell.left, cell.right)
 		}
@@ -194,6 +197,15 @@ func (cell *Cell) setJunction() *Cell {
 func (cell *Cell) setType(cellType cellType) *Cell {
 	cell.cellType = cellType
 	return cell
+}
+
+func junctionGlyph(left, right bool, glyphs *Glyphs) string {
+	if left && right {
+		return glyphs.JunctionThrough
+	} else if right {
+		return glyphs.JunctionFromRight
+	}
+	return glyphs.Junction
 }
 
 func getBoxDrawingChar(up, down, left, right bool) string {

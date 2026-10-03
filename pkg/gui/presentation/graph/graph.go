@@ -384,14 +384,18 @@ func renderPipeSet(
 }
 
 // markJunctions marks the cells other than the commit's own where an edge
-// ends at the commit and another edge from the commit starts.
+// from the commit starts in a vertical line that is there anyway: either
+// another edge ends at the commit there, or an edge continues past the row
+// that the edge from the commit joins.
 func markJunctions(cells []*Cell, pipes []Pipe, commitPos int16) {
 	for _, start := range pipes {
 		if start.kind != STARTS || start.toPos == commitPos {
 			continue
 		}
-		for _, end := range pipes {
-			if end.kind == TERMINATES && end.fromPos == start.toPos {
+		for _, other := range pipes {
+			endsHere := other.kind == TERMINATES && other.fromPos == start.toPos
+			continuesHere := other.kind == CONTINUES && other.fromPos == start.toPos && other.toPos == start.toPos
+			if endsHere || continuesHere {
 				cells[start.toPos].setJunction()
 				break
 			}
