@@ -53,7 +53,7 @@ func TestRenderLaneGraph(t *testing.T) {
 			expectedOutput: `
 			x ●
 			y │  ●
-			m ◉──┤
+			m •──┤
 			q │  ●
 			p ●──╯`,
 		},
@@ -71,7 +71,7 @@ func TestRenderLaneGraph(t *testing.T) {
 			a ●
 			b │  ●
 			c │  │  ●
-			m ◉──┼──╯
+			m •──┼──╯
 			q │  ●
 			p ●──╯`,
 		},
@@ -85,7 +85,7 @@ func TestRenderLaneGraph(t *testing.T) {
 			},
 			expectedOutput: `
 			a ●
-			m ├──◉
+			m ├──•
 			q │  ●
 			p ●──╯`,
 		},
@@ -102,7 +102,7 @@ func TestRenderLaneGraph(t *testing.T) {
 			expectedOutput: `
 			x ●
 			y │  ●
-			m ◉──┤
+			m •──┤
 			q │  ●
 			p ●──╯`,
 		},
@@ -117,7 +117,7 @@ func TestRenderLaneGraph(t *testing.T) {
 			selectedHash: "m",
 			expectedOutput: `
 			a ●
-			m ├──◉
+			m ├──•
 			q │  ●
 			p ●──╯`,
 		},
@@ -130,7 +130,7 @@ func TestRenderLaneGraph(t *testing.T) {
 				{Hash: "p", Parents: []string{"q"}},
 			},
 			expectedOutput: `
-			m ◉──╮
+			m •──╮
 			c │  │  ●
 			x │  ╰──●
 			p ●─────╯`,
@@ -163,10 +163,10 @@ func TestRenderLaneGraph(t *testing.T) {
 			},
 			expectedOutput: `
 			1 ●
-			2 ◉──╮
-			3 ◉──┤
-			5 ◉──│──╮
-			7 ◉──│──│──╮
+			2 •──╮
+			3 •──┤
+			5 •──│──╮
+			7 •──│──│──╮
 			4 ●──╯  │  │
 			B ●     │  │
 			C ●     │  │`,

@@ -50,7 +50,8 @@ var ClassicGlyphs = &Glyphs{
 }
 
 // The lane layout uses bigger nodes and wider spacing between lanes, so that
-// each branch stands out as a line of its own.
+// each branch stands out as a line of its own. Merge commits are small dots
+// on the line, so that the commits with actual changes stand out.
 //
 // A lane can end at a merge commit on the same row where the commit's edge to
 // another parent starts in that lane; the junction glyphs show that both of
@@ -58,7 +59,7 @@ var ClassicGlyphs = &Glyphs{
 // horizontal line.
 var LaneGlyphs = &Glyphs{
 	Commit:            "●",
-	Merge:             "◉",
+	Merge:             "•",
 	Horizontal:        "──",
 	Blank:             "  ",
 	Junction:          "┤",
@@ -71,13 +72,14 @@ var LaneGlyphs = &Glyphs{
 	SelectionHidesOtherLines: false,
 }
 
-// With a Nerd Font, the lane graph uses Font Awesome's circles, which are
-// bigger than the Unicode ones in most fonts. They are at the same code
-// points in Nerd Fonts 2 and 3.
+// With a Nerd Font, the lane graph uses icon font dots, which fill the cell
+// better than the Unicode ones in most fonts. They are at the same code points
+// in Nerd Fonts 2 and 3 (where nf-oct-dot_fill used to be called
+// nf-oct-primitive_dot).
 var LaneNerdFontGlyphs = func() *Glyphs {
 	glyphs := *LaneGlyphs
 	glyphs.Commit = "\uf111" // nf-fa-circle
-	glyphs.Merge = "\uf192"  // nf-fa-dot_circle_o
+	glyphs.Merge = "\uf444"  // nf-oct-dot_fill
 	return &glyphs
 }()
 
