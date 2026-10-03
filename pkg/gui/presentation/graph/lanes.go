@@ -201,24 +201,73 @@ func mergeParentLane(lanes []lane, pos int) int {
 }
 
 // BranchTipIndex returns the index of the commit whose branch the commit at
-// index i is on, as far as the lane graph shows it: the first commit with a
-// branch (as told by hasBranch) up the chain of first parents that the commit
-// continues in its lane. If the top of that chain has no branch, e.g. because
-// the branch was deleted after it was merged, the search goes on from the
-// merge commit that it was merged with. Without any branch on the way, it
-// returns the last commit that it got to.
-func BranchTipIndex(commits []*models.Commit, pipeSets [][]Pipe, i int, hasBranch func(*models.Commit) bool) int {
-	for !hasBranch(commits[i]) {
-		next := firstParentChildIndex(commits, pipeSets, i)
-		if next == -1 {
-			next = mergeChildIndex(commits, i)
+// index i is on: the first commit with a branch (as told by hasBranch) up the
+// commits that continue it as their first parent. Where several of these lead
+// to a branch, it prefers a main branch (as told by isMainBranch), and else
+// the one in the commit's lane. Where none of them does, e.g. because a
+// branch was deleted after it was merged, the search goes on from the merge
+// commit that merged it. Without any branch on the way, it returns i.
+func BranchTipIndex(
+	commits []*models.Commit,
+	pipeSets [][]Pipe,
+	i int,
+	hasBranch func(*models.Commit) bool,
+	isMainBranch func(*models.Commit) bool,
+) int {
+	firstParentChildren := make(map[*string][]int, len(commits))
+	for j, commit := range commits {
+		if len(commit.ParentPtrs()) > 0 {
+			parent := commit.ParentPtrs()[0]
+			firstParentChildren[parent] = append(firstParentChildren[parent], j)
 		}
-		if next == -1 {
-			return i
+	}
+
+	// the index of the commit with the branch for each commit searched from,
+	// or -1 if there is none
+	found := make(map[int]int)
+	var search func(i int) int
+	search = func(i int) int {
+		if result, ok := found[i]; ok {
+			return result
 		}
-		i = next
+		result := -1
+		if hasBranch(commits[i]) {
+			result = i
+		} else {
+			for _, next := range branchSearchCandidates(commits, pipeSets, i, firstParentChildren[commits[i].HashPtr()]) {
+				candidate := search(next)
+				if candidate != -1 && (result == -1 || isMainBranch(commits[candidate]) && !isMainBranch(commits[result])) {
+					result = candidate
+				}
+			}
+		}
+		found[i] = result
+		return result
+	}
+
+	if result := search(i); result != -1 {
+		return result
 	}
 	return i
+}
+
+// branchSearchCandidates returns the commits to search the branch of the
+// commit at index i from: the commits that continue it as their first parent,
+// the one in its lane first; or if there are none, the merge commit that
+// merged it.
+func branchSearchCandidates(commits []*models.Commit, pipeSets [][]Pipe, i int, firstParentChildren []int) []int {
+	if len(firstParentChildren) == 0 {
+		if mergeChild := mergeChildIndex(commits, i); mergeChild != -1 {
+			return []int{mergeChild}
+		}
+		return nil
+	}
+
+	laneChild := firstParentChildIndex(commits, pipeSets, i)
+	return append(
+		lo.Filter(firstParentChildren, func(child int, _ int) bool { return child == laneChild }),
+		lo.Filter(firstParentChildren, func(child int, _ int) bool { return child != laneChild })...,
+	)
 }
 
 // mergeChildIndex returns the index of the nearest merge commit above the

@@ -103,8 +103,10 @@ func TestBranchNameOfCommit(t *testing.T) {
 	commitOpts := []models.NewCommitOpts{
 		{Hash: "branchname-todo", Parents: []string{"branchname-main"}, Action: todo.Pick},
 		{Hash: "branchname-main", Parents: []string{"branchname-merge"}, ExtraInfo: "(HEAD -> main, origin/main)"},
+		{Hash: "branchname-other", Parents: []string{"branchname-feature"}, ExtraInfo: "(other)"},
 		{Hash: "branchname-merge", Parents: []string{"branchname-base", "branchname-feature"}},
-		{Hash: "branchname-feature", Parents: []string{"branchname-base"}, ExtraInfo: "(tag: v1)"},
+		{Hash: "branchname-feature", Parents: []string{"branchname-feature-base"}, ExtraInfo: "(feature, tag: v1)"},
+		{Hash: "branchname-feature-base", Parents: []string{"branchname-base"}},
 		{Hash: "branchname-base", Parents: []string{}},
 	}
 	tests := []struct {
@@ -113,14 +115,20 @@ func TestBranchNameOfCommit(t *testing.T) {
 		index      int
 		expected   string
 	}{
-		{name: "commit on the checked-out branch", graphStyle: "lanes", index: 4, expected: "main"},
-		{name: "branch that was deleted after it was merged, with just a tag", graphStyle: "lanes", index: 3, expected: "main"},
+		{name: "commit on the checked-out branch", graphStyle: "lanes", index: 6, expected: "main"},
+		{name: "branch that isn't merged into a main branch", graphStyle: "lanes", index: 2, expected: "other"},
+		{name: "tip of a branch that was merged into a main branch", graphStyle: "lanes", index: 4, expected: "feature"},
+		// even though the branch was merged into main
+		{name: "commit on a branch that was merged into a main branch", graphStyle: "lanes", index: 5, expected: "feature"},
 		{name: "rebase todo", graphStyle: "lanes", index: 0, expected: ""},
-		{name: "classic graph", graphStyle: "classic", index: 4, expected: ""},
+		{name: "classic graph", graphStyle: "classic", index: 6, expected: ""},
 	}
 
 	common := common.NewDummyCommon()
-	branches := []*models.Branch{{Name: "main", CommitHash: "branchname-main"}}
+	branches := []*models.Branch{
+		{Name: "main", CommitHash: "branchname-main"},
+		{Name: "feature", CommitHash: "branchname-feature"},
+	}
 	hashPool := &utils.StringPool{}
 	commits := lo.Map(commitOpts, func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
 	for _, test := range tests {

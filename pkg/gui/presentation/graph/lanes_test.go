@@ -301,7 +301,7 @@ func TestBranchTipIndex(t *testing.T) {
 		t.Run(test.selected, func(t *testing.T) {
 			_, selectedIdx, _ := lo.FindIndexOf(commits, func(c *models.Commit) bool { return c.Hash() == test.selected })
 
-			tipIdx := BranchTipIndex(commits, pipeSets, selectedIdx, hasBranch)
+			tipIdx := BranchTipIndex(commits, pipeSets, selectedIdx, hasBranch, func(*models.Commit) bool { return false })
 
 			assert.Equal(t, test.expectedTip, commits[tipIdx].Hash())
 		})
@@ -409,4 +409,24 @@ func TestRenderLaneGraphOpensMergedBranchesInTheLeftmostFreeLane(t *testing.T) {
 		x ├──•
 		r ●  │
 		w ╰──●`, commitOpts, lines)
+}
+
+func TestBranchTipIndexPrefersTheWayToTheMainBranch(t *testing.T) {
+	commitOpts := []models.NewCommitOpts{
+		{Hash: "side", Parents: []string{"x"}},
+		{Hash: "main", Parents: []string{"m"}},
+		{Hash: "m", Parents: []string{"x"}},
+		{Hash: "x", Parents: []string{"y"}},
+	}
+
+	hashPool := &utils.StringPool{}
+	commits := lo.Map(commitOpts, func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
+	pipeSets := GetLanePipeSets(commits, nil, func(int, *models.Commit) *style.TextStyle { return &style.FgDefault })
+	hasBranch := func(commit *models.Commit) bool { return commit.Hash() == "side" || commit.Hash() == "main" }
+	isMainBranch := func(commit *models.Commit) bool { return commit.Hash() == "main" }
+
+	// x continues in side's lane, but is also on the way to main
+	tipIdx := BranchTipIndex(commits, pipeSets, 3, hasBranch, isMainBranch)
+
+	assert.Equal(t, "main", commits[tipIdx].Hash())
 }

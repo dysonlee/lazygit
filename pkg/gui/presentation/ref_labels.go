@@ -131,6 +131,7 @@ func newRefLabelColumn(
 	start int,
 	end int,
 	branches []*models.Branch,
+	mainBranches []string,
 	selectedCommitHashPtr *string,
 ) refLabelColumn {
 	localBranchNames := set.NewFromSlice(lo.Map(branches, func(branch *models.Branch, _ int) string { return branch.Name }))
@@ -144,7 +145,7 @@ func newRefLabelColumn(
 		return commit.HashPtr() == selectedCommitHashPtr
 	})
 	if selectedIsVisible && len(labels[selectedIdx]) == 0 {
-		labels[selectedIdx] = branchLabelsOfCommit(commits, pipeSets, start+selectedIdx, localBranchNames)
+		labels[selectedIdx] = branchLabelsOfCommit(commits, pipeSets, start+selectedIdx, localBranchNames, mainBranches)
 		branchLabel[selectedIdx] = true
 	}
 
@@ -191,7 +192,7 @@ func BranchNameOfCommit(common *common.Common, commits []*models.Commit, branche
 	graphCommits := commits[rebaseOffset:]
 	pipeSets, _ := loadPipesets(graphCommits, "lanes", common.UserConfig().Git.Log.DimUnreachableCommits, common.UserConfig().Git.MainBranches)
 	localBranchNames := set.NewFromSlice(lo.Map(branches, func(branch *models.Branch, _ int) string { return branch.Name }))
-	labels := branchLabelsOfCommit(graphCommits, pipeSets, index-rebaseOffset, localBranchNames)
+	labels := branchLabelsOfCommit(graphCommits, pipeSets, index-rebaseOffset, localBranchNames, common.UserConfig().Git.MainBranches)
 	if len(labels) == 0 {
 		return ""
 	}
@@ -199,17 +200,27 @@ func BranchNameOfCommit(common *common.Common, commits []*models.Commit, branche
 }
 
 // branchLabelsOfCommit returns the labels of the branches that the commit at
-// the given index is on in the lane graph (see graph.BranchTipIndex), leaving
-// out tags; or nil if there is no such branch.
-func branchLabelsOfCommit(commits []*models.Commit, pipeSets [][]graph.Pipe, index int, localBranchNames *set.Set[string]) []refLabel {
+// the given index is on, leaving out tags; or nil if there is no such branch.
+// These are the branches pointing at the commit, if any, or else the first
+// ones up the commits that continue it, preferring a main branch (see
+// graph.BranchTipIndex).
+func branchLabelsOfCommit(
+	commits []*models.Commit,
+	pipeSets [][]graph.Pipe,
+	index int,
+	localBranchNames *set.Set[string],
+	mainBranches []string,
+) []refLabel {
 	branchLabels := func(commit *models.Commit) []refLabel {
 		return lo.Filter(commitRefLabels(commit, localBranchNames), func(label refLabel, _ int) bool {
 			return label.local || label.remote
 		})
 	}
-	tip := graph.BranchTipIndex(commits, pipeSets, index, func(commit *models.Commit) bool {
-		return len(branchLabels(commit)) > 0
-	})
+
+	tip := graph.BranchTipIndex(commits, pipeSets, index,
+		func(commit *models.Commit) bool { return len(branchLabels(commit)) > 0 },
+		func(commit *models.Commit) bool { return isMainBranchTip(commit, mainBranches) },
+	)
 	return branchLabels(commits[tip])
 }
 
