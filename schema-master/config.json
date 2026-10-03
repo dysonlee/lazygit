@@ -1231,6 +1231,11 @@
           "description": "Length of author name in expanded commits view. 2 means show initials only.",
           "default": 17
         },
+        "showCommitDateInExpandedView": {
+          "type": "boolean",
+          "description": "If true (default), the expanded commits view shows the date of each commit.",
+          "default": true
+        },
         "commitHashLength": {
           "type": "integer",
           "minimum": 0,

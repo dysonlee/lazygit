@@ -308,6 +308,9 @@ gui:
   # Length of author name in expanded commits view. 2 means show initials only.
   commitAuthorLongLength: 17
 
+  # If true (default), the expanded commits view shows the date of each commit.
+  showCommitDateInExpandedView: true
+
   # Length of commit hash in commits view. 0 shows '*' if NF icons aren't on.
   commitHashLength: 8
 

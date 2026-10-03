@@ -53,6 +53,7 @@ func TestGetCommitListDisplayStrings(t *testing.T) {
 		showGraph                 bool
 		graphStyle                string
 		useIcons                  bool
+		hideDateInExpandedView    bool
 		bisectInfo                *git_commands.BisectInfo
 		expected                  string
 		focus                     bool
@@ -668,6 +669,27 @@ func TestGetCommitListDisplayStrings(t *testing.T) {
 						`),
 		},
 		{
+			testName: "expanded view without the date",
+			commitOpts: []models.NewCommitOpts{
+				{Name: "commit1", Hash: "hash1", UnixTimestamp: 1577844184, AuthorName: "Jesse Duffield"},
+				{Name: "commit2", Hash: "hash2", UnixTimestamp: 1576844184, AuthorName: "Jesse Duffield"},
+			},
+			fullDescription:           true,
+			hideDateInExpandedView:    true,
+			timeFormat:                "2006-01-02",
+			shortTimeFormat:           "3:04PM",
+			startIdx:                  0,
+			endIdx:                    2,
+			showGraph:                 false,
+			bisectInfo:                git_commands.NewNullBisectInfo(),
+			cherryPickedCommitHashSet: set.New[string](),
+			now:                       time.Date(2020, 1, 1, 5, 3, 4, 0, time.UTC),
+			expected: formatExpected(`
+		hash1 Jesse Duffield    commit1
+		hash2 Jesse Duffield    commit2
+						`),
+		},
+		{
 			testName: "only showing commits from today",
 			commitOpts: []models.NewCommitOpts{
 				{Name: "commit1", Hash: "hash1", UnixTimestamp: 1577844184, AuthorName: "Jesse Duffield"},
@@ -706,6 +728,7 @@ func TestGetCommitListDisplayStrings(t *testing.T) {
 				hashPool := &utils.StringPool{}
 				common.UserConfig().Git.Log.GraphStyle = lo.CoalesceOrEmpty(s.graphStyle, "classic")
 				icons.SetNerdFontsVersion(lo.Ternary(s.useIcons, "3", ""))
+				common.UserConfig().Gui.ShowCommitDateInExpandedView = !s.hideDateInExpandedView
 
 				commits := lo.Map(s.commitOpts,
 					func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })

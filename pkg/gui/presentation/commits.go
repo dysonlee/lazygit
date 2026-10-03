@@ -219,8 +219,9 @@ func GetCommitListDisplayStrings(
 					(hasRebaseUpdateRefsConfig || b.CommitHash != commits[0].Hash())
 		}))
 
+	showDate := fullDescription && common.UserConfig().Gui.ShowCommitDateInExpandedView
 	reservedWidths := getReservedColumnWidths(
-		commits, common.UserConfig().Gui.CommitHashLength, fullDescription,
+		commits, common.UserConfig().Gui.CommitHashLength, showDate,
 		timeFormat, shortTimeFormat, now, bisectInfo, bisectBounds)
 
 	lines := make([][]string, 0, len(filteredCommits))
@@ -250,6 +251,7 @@ func GetCommitListDisplayStrings(
 			isDimmed(commit),
 			showRefLabels,
 			fullDescription,
+			showDate,
 			bisectStatus,
 			bisectInfo,
 			reservedWidths,
@@ -274,7 +276,7 @@ type reservedColumnWidths struct {
 func getReservedColumnWidths(
 	commits []*models.Commit,
 	hashLength int,
-	fullDescription bool,
+	showDate bool,
 	timeFormat string,
 	shortTimeFormat string,
 	now time.Time,
@@ -293,7 +295,7 @@ func getReservedColumnWidths(
 			utils.StringWidth(getBisectStatusText(bisectStatus, bisectInfo)))
 	}
 
-	if fullDescription {
+	if showDate {
 		// Formatting the date of every commit on every render would be too
 		// expensive, so measure the oldest one only. It is the one least likely
 		// to be from today, and so the one most likely to be shown in the long
@@ -536,6 +538,7 @@ func displayCommit(
 	dimmed bool,
 	showRefLabels bool,
 	fullDescription bool,
+	showDate bool,
 	bisectStatus BisectStatus,
 	bisectInfo *git_commands.BisectInfo,
 	reservedWidths reservedColumnWidths,
@@ -564,7 +567,7 @@ func displayCommit(
 	}
 
 	descriptionString := ""
-	if fullDescription {
+	if showDate {
 		descriptionString = style.FgBlue.Sprint(
 			utils.UnixToDateSmart(now, commit.UnixTimestamp, timeFormat, shortTimeFormat),
 		)

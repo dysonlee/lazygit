@@ -183,6 +183,8 @@ type GuiConfig struct {
 	CommitAuthorShortLength int `yaml:"commitAuthorShortLength"`
 	// Length of author name in expanded commits view. 2 means show initials only.
 	CommitAuthorLongLength int `yaml:"commitAuthorLongLength"`
+	// If true (default), the expanded commits view shows the date of each commit.
+	ShowCommitDateInExpandedView bool `yaml:"showCommitDateInExpandedView"`
 	// Length of commit hash in commits view. 0 shows '*' if NF icons aren't on.
 	CommitHashLength int `yaml:"commitHashLength" jsonschema:"minimum=0"`
 	// If true, show commit hashes alongside branch names in the branches view.
@@ -932,6 +934,7 @@ func GetDefaultConfigForPlatform(platform string) *UserConfig {
 			ShowFileIcons:                       true,
 			CommitAuthorShortLength:             2,
 			CommitAuthorLongLength:              17,
+			ShowCommitDateInExpandedView:        true,
 			CommitHashLength:                    8,
 			ShowBranchCommitHash:                false,
 			ShowDivergenceFromBaseBranch:        "none",
