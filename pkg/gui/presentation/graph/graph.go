@@ -261,15 +261,19 @@ func getNextPipes(prevPipes []Pipe, commit *models.Commit, getStyle func(c *mode
 		}
 	}
 
-	// not efficient but doing it for now: sorting my pipes by toPos, then by kind
-	slices.SortFunc(newPipes, func(a, b Pipe) int {
+	sortPipes(newPipes)
+
+	return newPipes
+}
+
+// not efficient but doing it for now: sorting my pipes by toPos, then by kind
+func sortPipes(pipes []Pipe) {
+	slices.SortFunc(pipes, func(a, b Pipe) int {
 		if a.toPos == b.toPos {
 			return cmp.Compare(a.kind, b.kind)
 		}
 		return cmp.Compare(a.toPos, b.toPos)
 	})
-
-	return newPipes
 }
 
 func renderPipeSet(
