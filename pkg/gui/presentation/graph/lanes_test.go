@@ -385,3 +385,28 @@ func TestRenderLaneGraphKeepsTheMainBranchInItsLane(t *testing.T) {
 		x ╰──●
 		y    ●`, commitOpts, lines)
 }
+
+func TestRenderLaneGraphOpensMergedBranchesInTheLeftmostFreeLane(t *testing.T) {
+	commitOpts := []models.NewCommitOpts{
+		{Hash: "d", Parents: []string{"x"}},
+		{Hash: "m", Parents: []string{"x"}},
+		{Hash: "x", Parents: []string{"w", "r"}},
+		{Hash: "r", Parents: []string{"w"}},
+		{Hash: "w", Parents: []string{"v"}},
+	}
+
+	hashPool := &utils.StringPool{}
+	commits := lo.Map(commitOpts, func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
+	isMainBranchTip := func(commit *models.Commit) bool { return commit.Hash() == "m" }
+	pipeSets := GetLanePipeSets(commits, isMainBranchTip, func(int, *models.Commit) *style.TextStyle { return &style.FgDefault })
+	lines := RenderAux(pipeSets, commits, hashPool.Add("blah"), LaneGlyphs, nil)
+
+	// The lane of d ends at x, in the main branch's lane, and the branch that
+	// x merges takes the lane that d left free, to the left of x
+	assertGraphOutput(t, `
+		d ●
+		m │  ●
+		x ├──•
+		r ●  │
+		w ╰──●`, commitOpts, lines)
+}

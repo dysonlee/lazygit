@@ -186,13 +186,13 @@ func commitLane(lanes []lane, commit *models.Commit) int {
 }
 
 // mergeParentLane returns the lane for the edge from a merge commit in lane
-// pos to one of its non-first parents: the leftmost free lane to the right of
-// the commit. This includes a lane that ends at the commit, so that a series
-// of branches that were each started from the merge of the previous one
-// stays in one column.
+// pos to one of its non-first parents: the leftmost free lane, on either side
+// of the commit. This includes a lane that ends at the
+// commit, so that a series of branches that were each started from the merge
+// of the previous one stays in one column.
 func mergeParentLane(lanes []lane, pos int) int {
-	for i := pos + 1; i < len(lanes); i++ {
-		if lanes[i].isFree() {
+	for i := range lanes {
+		if i != pos && lanes[i].isFree() {
 			return i
 		}
 	}
