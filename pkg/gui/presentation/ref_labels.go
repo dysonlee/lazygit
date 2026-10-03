@@ -108,7 +108,7 @@ func renderRefLabels(labels []refLabel, width int, labelStyle *style.TextStyle, 
 }
 
 // The width of the labels in front of the lane graph
-const refLabelsWidth = 20
+const refLabelsWidth = 18
 
 // The labels of the commits of the rows of the graph that are rendered
 type refLabelColumn struct {
