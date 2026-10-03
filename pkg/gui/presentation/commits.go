@@ -107,6 +107,7 @@ func GetCommitListDisplayStrings(
 						graphPipeSets,
 						graphCommits,
 						selectedCommitHashPtr,
+						graph.ClassicGlyphs,
 					)
 					allGraphLines = append(allGraphLines, graphLines...)
 				}
@@ -124,6 +125,7 @@ func GetCommitListDisplayStrings(
 						graphPipeSets,
 						graphCommits,
 						selectedCommitHashPtr,
+						graph.ClassicGlyphs,
 					)
 					allGraphLines = append(allGraphLines, graphLines...)
 				}
@@ -145,6 +147,7 @@ func GetCommitListDisplayStrings(
 				graphPipeSets,
 				graphCommits,
 				selectedCommitHashPtr,
+				graph.ClassicGlyphs,
 			)
 			getGraphLine = func(idx int) string {
 				if idx >= graphOffset {

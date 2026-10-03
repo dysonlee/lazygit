@@ -635,7 +635,7 @@ func TestGraphColorsFollowTheAuthorColors(t *testing.T) {
 		models.NewCommit(hashPool, models.NewCommitOpts{Hash: "authorcolors2", AuthorName: "Jane Doe"}),
 	}
 	renderGraph := func() string {
-		return strings.Join(graph.RenderAux(loadPipesets(commits), commits, nil), "\n")
+		return strings.Join(graph.RenderAux(loadPipesets(commits), commits, nil, graph.ClassicGlyphs), "\n")
 	}
 
 	authors.SetCustomAuthors(map[string]string{"Jane Doe": "red"})

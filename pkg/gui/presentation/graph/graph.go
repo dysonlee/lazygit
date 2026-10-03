@@ -45,13 +45,13 @@ func (self Pipe) right() int16 {
 	return max(self.fromPos, self.toPos)
 }
 
-func RenderCommitGraph(commits []*models.Commit, selectedCommitHashPtr *string, getStyle func(c *models.Commit) *style.TextStyle) []string {
+func RenderCommitGraph(commits []*models.Commit, selectedCommitHashPtr *string, getStyle func(c *models.Commit) *style.TextStyle, glyphs *Glyphs) []string {
 	pipeSets := GetPipeSets(commits, getStyle)
 	if len(pipeSets) == 0 {
 		return nil
 	}
 
-	lines := RenderAux(pipeSets, commits, selectedCommitHashPtr)
+	lines := RenderAux(pipeSets, commits, selectedCommitHashPtr, glyphs)
 
 	return lines
 }
@@ -69,7 +69,7 @@ func GetPipeSets(commits []*models.Commit, getStyle func(c *models.Commit) *styl
 	})
 }
 
-func RenderAux(pipeSets [][]Pipe, commits []*models.Commit, selectedCommitHashPtr *string) []string {
+func RenderAux(pipeSets [][]Pipe, commits []*models.Commit, selectedCommitHashPtr *string, glyphs *Glyphs) []string {
 	maxProcs := runtime.GOMAXPROCS(0)
 
 	// splitting up the rendering of the graph into multiple goroutines allows us to render the graph in parallel
@@ -93,7 +93,7 @@ func RenderAux(pipeSets [][]Pipe, commits []*models.Commit, selectedCommitHashPt
 				if k > 0 {
 					prevCommit = commits[k-1]
 				}
-				line := renderPipeSet(pipeSet, selectedCommitHashPtr, prevCommit)
+				line := renderPipeSet(pipeSet, selectedCommitHashPtr, prevCommit, glyphs)
 				innerLines = append(innerLines, line)
 			}
 			chunks[i] = innerLines
@@ -276,6 +276,7 @@ func renderPipeSet(
 	pipes []Pipe,
 	selectedCommitHashPtr *string,
 	prevCommit *models.Commit,
+	glyphs *Glyphs,
 ) string {
 	maxPos := int16(0)
 	commitPos := int16(0)
@@ -371,7 +372,7 @@ func renderPipeSet(
 	writer := &strings.Builder{}
 	writer.Grow(len(cells) * 2)
 	for _, cell := range cells {
-		cell.render(writer)
+		cell.render(writer, glyphs)
 	}
 	return writer.String()
 }

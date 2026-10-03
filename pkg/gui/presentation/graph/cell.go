@@ -13,6 +13,24 @@ const (
 	CommitSymbol = '○'
 )
 
+// Glyphs are the strings a graph cell is drawn with. A cell is a node or
+// box-drawing character followed by a connector to the next cell, which is
+// Horizontal if the cell connects to the right and Blank otherwise; the
+// width of the connectors therefore determines the spacing between lanes.
+type Glyphs struct {
+	Commit     string
+	Merge      string
+	Horizontal string
+	Blank      string
+}
+
+var ClassicGlyphs = &Glyphs{
+	Commit:     string(CommitSymbol),
+	Merge:      string(MergeSymbol),
+	Horizontal: "─",
+	Blank:      " ",
+}
+
 type cellType int
 
 const (
@@ -28,18 +46,15 @@ type Cell struct {
 	style                 *style.TextStyle
 }
 
-func (cell *Cell) render(writer io.StringWriter) {
-	up, down, left, right := cell.up, cell.down, cell.left, cell.right
-
-	first, second := getBoxDrawingChars(up, down, left, right)
-	var adjustedFirst string
+func (cell *Cell) render(writer io.StringWriter, glyphs *Glyphs) {
+	var first string
 	switch cell.cellType {
 	case CONNECTION:
-		adjustedFirst = first
+		first = getBoxDrawingChar(cell.up, cell.down, cell.left, cell.right)
 	case COMMIT:
-		adjustedFirst = string(CommitSymbol)
+		first = glyphs.Commit
 	case MERGE:
-		adjustedFirst = string(MergeSymbol)
+		first = glyphs.Merge
 	}
 
 	var rightStyle *style.TextStyle
@@ -52,15 +67,15 @@ func (cell *Cell) render(writer io.StringWriter) {
 	// just doing this for the sake of easy testing, so that we don't need to
 	// assert on the style of a space given a space has no styling (assuming we
 	// stick to only using foreground styles)
-	var styledSecondChar string
-	if second == " " {
-		styledSecondChar = " "
+	var styledSecond string
+	if cell.right {
+		styledSecond = cachedSprint(*rightStyle, glyphs.Horizontal)
 	} else {
-		styledSecondChar = cachedSprint(*rightStyle, second)
+		styledSecond = glyphs.Blank
 	}
 
-	_, _ = writer.WriteString(cachedSprint(*cell.style, adjustedFirst))
-	_, _ = writer.WriteString(styledSecondChar)
+	_, _ = writer.WriteString(cachedSprint(*cell.style, first))
+	_, _ = writer.WriteString(styledSecond)
 }
 
 // The rendered string depends on the color level too, which tests change.
@@ -146,40 +161,30 @@ func (cell *Cell) setType(cellType cellType) *Cell {
 	return cell
 }
 
-func getBoxDrawingChars(up, down, left, right bool) (string, string) {
-	if up && down && left && right {
-		return "│", "─"
-	} else if up && down && left && !right {
-		return "│", " "
-	} else if up && down && !left && right {
-		return "│", "─"
-	} else if up && down && !left && !right {
-		return "│", " "
+func getBoxDrawingChar(up, down, left, right bool) string {
+	if up && down {
+		return "│"
 	} else if up && !down && left && right {
-		return "┴", "─"
+		return "┴"
 	} else if up && !down && left && !right {
-		return "╯", " "
+		return "╯"
 	} else if up && !down && !left && right {
-		return "╰", "─"
+		return "╰"
 	} else if up && !down && !left && !right {
-		return "╵", " "
+		return "╵"
 	} else if !up && down && left && right {
-		return "┬", "─"
+		return "┬"
 	} else if !up && down && left && !right {
-		return "╮", " "
+		return "╮"
 	} else if !up && down && !left && right {
-		return "╭", "─"
+		return "╭"
 	} else if !up && down && !left && !right {
-		return "╷", " "
-	} else if !up && !down && left && right {
-		return "─", "─"
-	} else if !up && !down && left && !right {
-		return "─", " "
-	} else if !up && !down && !left && right {
-		return "╶", "─"
-	} else if !up && !down && !left && !right {
-		return " ", " "
+		return "╷"
+	} else if left {
+		return "─"
+	} else if right {
+		return "╶"
 	}
 
-	panic("should not be possible")
+	return " "
 }
