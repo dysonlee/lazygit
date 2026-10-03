@@ -30,6 +30,8 @@ type pipeSetCacheKey struct {
 	// the hash of the head commit if commits not reachable from it are
 	// dimmed, empty otherwise
 	headHash string
+	// the main branches that the lane graph keeps in one lane
+	mainBranches string
 }
 
 type graphData struct {
@@ -98,6 +100,7 @@ func GetCommitListDisplayStrings(
 	showRefLabels := false
 	if showGraph {
 		graphStyle := common.UserConfig().Git.Log.GraphStyle
+		mainBranches := common.UserConfig().Git.MainBranches
 		glyphs := graphGlyphs(common.UserConfig().Git.Log)
 		if len(commits) > 0 && commits[0].Divergence != models.DivergenceNone {
 			// Showing a divergence log; we know we don't have any rebasing
@@ -113,7 +116,7 @@ func GetCommitListDisplayStrings(
 
 			if localSectionStart > 0 {
 				// we have some remote commits
-				pipeSets, _ := loadPipesets(commits[:localSectionStart], graphStyle, false)
+				pipeSets, _ := loadPipesets(commits[:localSectionStart], graphStyle, false, mainBranches)
 				if startIdx < localSectionStart {
 					// some of the remote commits are visible
 					start := startIdx
@@ -132,7 +135,7 @@ func GetCommitListDisplayStrings(
 			}
 			if localSectionStart < len(commits) {
 				// we have some local commits
-				pipeSets, _ := loadPipesets(commits[localSectionStart:], graphStyle, false)
+				pipeSets, _ := loadPipesets(commits[localSectionStart:], graphStyle, false, mainBranches)
 				if localSectionStart < endIdx {
 					// some of the local commits are visible
 					graphOffset := max(startIdx, localSectionStart)
@@ -158,7 +161,7 @@ func GetCommitListDisplayStrings(
 			// but we'll never include TODO commits as part of the graph because it'll be messy)
 			graphOffset := max(startIdx, rebaseOffset)
 
-			pipeSets, reachable := loadPipesets(commits[rebaseOffset:], graphStyle, dimUnreachable && graphStyle == "lanes")
+			pipeSets, reachable := loadPipesets(commits[rebaseOffset:], graphStyle, dimUnreachable && graphStyle == "lanes", mainBranches)
 			if reachable != nil {
 				isDimmed = func(commit *models.Commit) bool {
 					return !commit.IsTODO() && !reachable.Includes(commit.HashPtr())
@@ -383,7 +386,7 @@ func graphGlyphs(logConfig config.LogConfig) *graph.Glyphs {
 // loadPipesets returns the pipes of the graph of the given commits, and if
 // dimUnreachable is set and the head commit is among them, the commits that are
 // reachable from it; the edges starting at the other commits are dimmed.
-func loadPipesets(commits []*models.Commit, graphStyle string, dimUnreachable bool) ([][]graph.Pipe, *set.Set[*string]) {
+func loadPipesets(commits []*models.Commit, graphStyle string, dimUnreachable bool, mainBranches []string) ([][]graph.Pipe, *set.Set[*string]) {
 	if pipeSetCacheAuthorColors != authors.ColorsVersion() {
 		pipeSetCache = make(map[pipeSetCacheKey]graphData)
 		pipeSetCacheAuthorColors = authors.ColorsVersion()
@@ -402,6 +405,9 @@ func loadPipesets(commits []*models.Commit, graphStyle string, dimUnreachable bo
 		divergence:  commits[0].Divergence,
 		graphStyle:  graphStyle,
 	}
+	if graphStyle == "lanes" {
+		cacheKey.mainBranches = strings.Join(mainBranches, " ")
+	}
 	if headFound {
 		cacheKey.headHash = commits[headIdx].Hash()
 	}
@@ -414,7 +420,8 @@ func loadPipesets(commits []*models.Commit, graphStyle string, dimUnreachable bo
 			data.reachable = graph.ReachableFrom(commits, headIdx)
 		}
 		if graphStyle == "lanes" {
-			data.pipeSets = graph.GetLanePipeSets(commits, func(color int, commit *models.Commit) *style.TextStyle {
+			isMainBranchTip := func(commit *models.Commit) bool { return isMainBranchTip(commit, mainBranches) }
+			data.pipeSets = graph.GetLanePipeSets(commits, isMainBranchTip, func(color int, commit *models.Commit) *style.TextStyle {
 				if data.reachable != nil && !data.reachable.Includes(commit.HashPtr()) {
 					return graph.DimmedLaneStyle(color)
 				}

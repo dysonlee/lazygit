@@ -20,6 +20,8 @@ type lane struct {
 	// whether the edge goes from a commit to its first parent, as opposed to
 	// from a merge commit to one of its other parents
 	firstParent bool
+	// whether the edge is part of the chain of first parents of a main branch
+	mainBranch bool
 }
 
 func (self lane) isFree() bool {
@@ -50,17 +52,27 @@ type laneLayout struct {
 // branch tip or merged branch gets the next lane color in turn. getStyle
 // returns the style for one of these colors (in the range [0,
 // LaneColorCount)) on the edges starting at the given commit.
-func GetLanePipeSets(commits []*models.Commit, getStyle func(color int, c *models.Commit) *style.TextStyle) [][]Pipe {
+//
+// The commits that isMainBranchTip (which may be nil) returns true for are the
+// tips of main branches, like master. Where a main branch and another branch
+// share their history, the shared commits continue in the main branch's lane,
+// so that the main branch's history stays in one line.
+func GetLanePipeSets(
+	commits []*models.Commit,
+	isMainBranchTip func(*models.Commit) bool,
+	getStyle func(color int, c *models.Commit) *style.TextStyle,
+) [][]Pipe {
 	layout := laneLayout{}
 
 	return lo.Map(commits, func(commit *models.Commit, _ int) []Pipe {
 		var pipes []Pipe
-		layout, pipes = layout.next(commit, getStyle)
+		isMainBranch := isMainBranchTip != nil && isMainBranchTip(commit)
+		layout, pipes = layout.next(commit, isMainBranch, getStyle)
 		return pipes
 	})
 }
 
-func (self laneLayout) next(commit *models.Commit, getStyle func(color int, c *models.Commit) *style.TextStyle) (laneLayout, []Pipe) {
+func (self laneLayout) next(commit *models.Commit, isMainBranchTip bool, getStyle func(color int, c *models.Commit) *style.TextStyle) (laneLayout, []Pipe) {
 	lanes := slices.Clone(self.lanes)
 	nextColor := self.nextColor
 	// A new branch avoids the colors of the branches on this row and the
@@ -78,6 +90,7 @@ func (self laneLayout) next(commit *models.Commit, getStyle func(color int, c *m
 	if pos == len(lanes) {
 		lanes = append(lanes, lane{})
 	}
+	isMainBranch := isMainBranchTip || (lanes[pos].mainBranch && equalHashes(lanes[pos].toHash, commit.HashPtr()))
 	var commitColor int
 	if equalHashes(lanes[pos].toHash, commit.HashPtr()) {
 		commitColor = lanes[pos].color
@@ -111,6 +124,7 @@ func (self laneLayout) next(commit *models.Commit, getStyle func(color int, c *m
 			color:       commitColor,
 			style:       getStyle(commitColor, commit),
 			firstParent: true,
+			mainBranch:  isMainBranch,
 		}
 		pipes = append(pipes, lanes[pos].pipe(pos, pos, STARTS))
 	}
@@ -148,11 +162,15 @@ func lanesUseColor(lanes []lane, color int) bool {
 
 // commitLane returns the lane a commit is drawn in. Preferring a lane that
 // comes from a child's first-parent edge keeps a branch's chain of commits in
-// one straight line, with merge edges bending into it. If no lane is waiting
+// one straight line, with merge edges bending into it; and among those, the
+// lane of a main branch keeps the main branch in one line. If no lane is waiting
 // for the commit, it is a branch tip and takes the leftmost free lane (which
 // may be a new one at the right edge).
 func commitLane(lanes []lane, commit *models.Commit) int {
 	isWaitingForCommit := func(l lane) bool { return equalHashes(l.toHash, commit.HashPtr()) }
+	if i := slices.IndexFunc(lanes, func(l lane) bool { return isWaitingForCommit(l) && l.firstParent && l.mainBranch }); i != -1 {
+		return i
+	}
 	if i := slices.IndexFunc(lanes, func(l lane) bool { return isWaitingForCommit(l) && l.firstParent }); i != -1 {
 		return i
 	}

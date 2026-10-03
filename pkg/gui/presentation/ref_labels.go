@@ -189,7 +189,7 @@ func BranchNameOfCommit(common *common.Common, commits []*models.Commit, branche
 	}
 
 	graphCommits := commits[rebaseOffset:]
-	pipeSets, _ := loadPipesets(graphCommits, "lanes", common.UserConfig().Git.Log.DimUnreachableCommits)
+	pipeSets, _ := loadPipesets(graphCommits, "lanes", common.UserConfig().Git.Log.DimUnreachableCommits, common.UserConfig().Git.MainBranches)
 	localBranchNames := set.NewFromSlice(lo.Map(branches, func(branch *models.Branch, _ int) string { return branch.Name }))
 	labels := branchLabelsOfCommit(graphCommits, pipeSets, index-rebaseOffset, localBranchNames)
 	if len(labels) == 0 {
@@ -211,4 +211,18 @@ func branchLabelsOfCommit(commits []*models.Commit, pipeSets [][]graph.Pipe, ind
 		return len(branchLabels(commit)) > 0
 	})
 	return branchLabels(commits[tip])
+}
+
+// isMainBranchTip tells whether one of the refs pointing at the commit is a
+// local or remote main branch.
+func isMainBranchTip(commit *models.Commit, mainBranches []string) bool {
+	return lo.ContainsBy(commitDecorations(commit), func(decoration string) bool {
+		return isMainBranchName(strings.TrimPrefix(decoration, "HEAD -> "), mainBranches)
+	})
+}
+
+// isMainBranchName tells whether a local or remote branch is a main branch.
+func isMainBranchName(name string, mainBranches []string) bool {
+	_, remoteBranchName, isRemote := strings.Cut(name, "/")
+	return lo.Contains(mainBranches, name) || (isRemote && lo.Contains(mainBranches, remoteBranchName))
 }

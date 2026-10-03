@@ -801,7 +801,7 @@ func TestGraphColorsFollowTheAuthorColors(t *testing.T) {
 		models.NewCommit(hashPool, models.NewCommitOpts{Hash: "authorcolors2", AuthorName: "Jane Doe"}),
 	}
 	renderGraph := func() string {
-		pipeSets, _ := loadPipesets(commits, "classic", false)
+		pipeSets, _ := loadPipesets(commits, "classic", false, nil)
 		return strings.Join(graph.RenderAux(pipeSets, commits, nil, graph.ClassicGlyphs, nil), "\n")
 	}
 
@@ -824,7 +824,7 @@ func TestLaneGraphColorsDoNotFollowTheAuthorColors(t *testing.T) {
 	}
 
 	authors.SetCustomAuthors(map[string]string{"Jane Doe": "red"})
-	pipeSets, _ := loadPipesets(commits, "lanes", false)
+	pipeSets, _ := loadPipesets(commits, "lanes", false, []string{"master", "main"})
 	renderedGraph := strings.Join(graph.RenderAux(pipeSets, commits, nil, graph.LaneGlyphs, nil), "\n")
 
 	assert.Contains(t, renderedGraph, graph.LaneStyle(0).Sprint(graph.LaneGlyphs.Commit))

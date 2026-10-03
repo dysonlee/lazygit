@@ -197,7 +197,7 @@ func TestRenderLaneGraph(t *testing.T) {
 			getStyle := func(int, *models.Commit) *style.TextStyle { return &style.FgDefault }
 			commits := lo.Map(test.commitOpts,
 				func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
-			pipeSets := GetLanePipeSets(commits, getStyle)
+			pipeSets := GetLanePipeSets(commits, nil, getStyle)
 			hasLabel := func(commit *models.Commit) bool { return lo.Contains(test.labelled, commit.Hash()) }
 			lines := RenderAux(pipeSets, commits, hashPool.Add(lo.CoalesceOrEmpty(test.selectedHash, "blah")), LaneGlyphs, hasLabel)
 
@@ -218,7 +218,7 @@ func BenchmarkRenderLaneGraph(b *testing.B) {
 	}
 	b.ResetTimer()
 	for b.Loop() {
-		RenderAux(GetLanePipeSets(commits, getStyle), commits, hashPool.Add("selected"), LaneGlyphs, nil)
+		RenderAux(GetLanePipeSets(commits, nil, getStyle), commits, hashPool.Add("selected"), LaneGlyphs, nil)
 	}
 }
 
@@ -250,7 +250,7 @@ func TestLaneGraphColors(t *testing.T) {
 
 			colorStyles := lo.Times(LaneColorCount, func(int) *style.TextStyle { return &style.TextStyle{} })
 			getStyle := func(color int, c *models.Commit) *style.TextStyle { return colorStyles[color] }
-			pipeSets := GetLanePipeSets(commits, getStyle)
+			pipeSets := GetLanePipeSets(commits, nil, getStyle)
 
 			// The color of a commit is the color of the pipe starting at it
 			// in its own lane.
@@ -295,7 +295,7 @@ func TestBranchTipIndex(t *testing.T) {
 
 	hashPool := &utils.StringPool{}
 	commits := lo.Map(commitOpts, func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
-	pipeSets := GetLanePipeSets(commits, func(int, *models.Commit) *style.TextStyle { return &style.FgDefault })
+	pipeSets := GetLanePipeSets(commits, nil, func(int, *models.Commit) *style.TextStyle { return &style.FgDefault })
 	hasBranch := func(commit *models.Commit) bool { return lo.Contains(branchTips, commit.Hash()) }
 	for _, test := range tests {
 		t.Run(test.selected, func(t *testing.T) {
@@ -356,10 +356,32 @@ func TestRenderLaneGraphWithBranchDrawingGlyphs(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			hashPool := &utils.StringPool{}
 			commits := lo.Map(test.commitOpts, func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
-			pipeSets := GetLanePipeSets(commits, func(int, *models.Commit) *style.TextStyle { return &style.FgDefault })
+			pipeSets := GetLanePipeSets(commits, nil, func(int, *models.Commit) *style.TextStyle { return &style.FgDefault })
 			lines := RenderAux(pipeSets, commits, hashPool.Add("blah"), WithBranchDrawingGlyphs(LaneGlyphs), nil)
 
 			assertGraphOutput(t, test.expectedOutput, test.commitOpts, lines)
 		})
 	}
+}
+
+func TestRenderLaneGraphKeepsTheMainBranchInItsLane(t *testing.T) {
+	commitOpts := []models.NewCommitOpts{
+		{Hash: "d", Parents: []string{"x"}},
+		{Hash: "m", Parents: []string{"x"}},
+		{Hash: "x", Parents: []string{"y"}},
+		{Hash: "y", Parents: []string{"z"}},
+	}
+
+	hashPool := &utils.StringPool{}
+	commits := lo.Map(commitOpts, func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
+	isMainBranchTip := func(commit *models.Commit) bool { return commit.Hash() == "m" }
+	pipeSets := GetLanePipeSets(commits, isMainBranchTip, func(int, *models.Commit) *style.TextStyle { return &style.FgDefault })
+	lines := RenderAux(pipeSets, commits, hashPool.Add("blah"), LaneGlyphs, nil)
+
+	// x is on both branches, and continues in the lane of the main branch
+	assertGraphOutput(t, `
+		d ●
+		m │  ●
+		x ╰──●
+		y    ●`, commitOpts, lines)
 }

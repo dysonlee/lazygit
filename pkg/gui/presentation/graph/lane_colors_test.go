@@ -45,7 +45,7 @@ func TestLaneLabelStyle(t *testing.T) {
 		{Hash: "c", Parents: []string{}},
 	}, func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
 	dimmedHash := commits[1].HashPtr()
-	pipeSets := GetLanePipeSets(commits, func(color int, commit *models.Commit) *style.TextStyle {
+	pipeSets := GetLanePipeSets(commits, nil, func(color int, commit *models.Commit) *style.TextStyle {
 		if commit.HashPtr() == dimmedHash {
 			return DimmedLaneStyle(color)
 		}
