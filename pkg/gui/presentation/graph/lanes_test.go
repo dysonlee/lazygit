@@ -16,6 +16,7 @@ func TestRenderLaneGraph(t *testing.T) {
 	tests := []struct {
 		name           string
 		commitOpts     []models.NewCommitOpts
+		selectedHash   string
 		expectedOutput string
 	}{
 		{
@@ -89,6 +90,38 @@ func TestRenderLaneGraph(t *testing.T) {
 			p ●──╯`,
 		},
 		{
+			name: "a selected merge commit keeps the lane that ends where its merge edge starts",
+			commitOpts: []models.NewCommitOpts{
+				{Hash: "x", Parents: []string{"m"}},
+				{Hash: "y", Parents: []string{"m"}},
+				{Hash: "m", Parents: []string{"p", "q"}},
+				{Hash: "q", Parents: []string{"p"}},
+				{Hash: "p", Parents: []string{"r"}},
+			},
+			selectedHash: "m",
+			expectedOutput: `
+			x ●
+			y │  ●
+			m ◉──┤
+			q │  ●
+			p ●──╯`,
+		},
+		{
+			name: "a selected merge commit keeps the lane its merge edge joins",
+			commitOpts: []models.NewCommitOpts{
+				{Hash: "a", Parents: []string{"p"}},
+				{Hash: "m", Parents: []string{"q", "p"}},
+				{Hash: "q", Parents: []string{"p"}},
+				{Hash: "p", Parents: []string{"r"}},
+			},
+			selectedHash: "m",
+			expectedOutput: `
+			a ●
+			m ├──◉
+			q │  ●
+			p ●──╯`,
+		},
+		{
 			name: "a commit stays in the lane of its first-parent chain rather than the leftmost lane waiting for it",
 			commitOpts: []models.NewCommitOpts{
 				{Hash: "m", Parents: []string{"p", "x"}},
@@ -151,7 +184,7 @@ func TestRenderLaneGraph(t *testing.T) {
 			commits := lo.Map(test.commitOpts,
 				func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
 			pipeSets := GetLanePipeSets(commits, getStyle)
-			lines := RenderAux(pipeSets, commits, hashPool.Add("blah"), LaneGlyphs)
+			lines := RenderAux(pipeSets, commits, hashPool.Add(lo.CoalesceOrEmpty(test.selectedHash, "blah")), LaneGlyphs)
 
 			assertGraphOutput(t, test.expectedOutput, test.commitOpts, lines)
 		})

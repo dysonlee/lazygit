@@ -353,9 +353,11 @@ func renderPipeSet(
 		}
 	}
 
-	for _, pipe := range selectedPipes {
-		for i := pipe.left(); i <= pipe.right(); i++ {
-			cells[i].reset()
+	if glyphs.SelectionHidesOtherLines {
+		for _, pipe := range selectedPipes {
+			for i := pipe.left(); i <= pipe.right(); i++ {
+				cells[i].reset()
+			}
 		}
 	}
 	for _, pipe := range selectedPipes {

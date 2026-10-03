@@ -13,10 +13,11 @@ const (
 	CommitSymbol = '○'
 )
 
-// Glyphs are the strings a graph cell is drawn with. A cell is a node or
-// box-drawing character followed by a connector to the next cell, which is
-// Horizontal if the cell connects to the right and Blank otherwise; the
-// width of the connectors therefore determines the spacing between lanes.
+// Glyphs determine how a graph is drawn, mainly the strings a graph cell is
+// drawn with. A cell is a node or box-drawing character followed by a
+// connector to the next cell, which is Horizontal if the cell connects to the
+// right and Blank otherwise; the width of the connectors therefore determines
+// the spacing between lanes.
 type Glyphs struct {
 	Commit     string
 	Merge      string
@@ -30,6 +31,10 @@ type Glyphs struct {
 	Junction          string
 	JunctionFromRight string
 	JunctionThrough   string
+	// Whether the highlighted lines of the selected commit hide the parts of
+	// other lines that they run through, rather than only being drawn in the
+	// highlight color.
+	SelectionHidesOtherLines bool
 }
 
 var ClassicGlyphs = &Glyphs{
@@ -40,6 +45,8 @@ var ClassicGlyphs = &Glyphs{
 	Junction:          "│",
 	JunctionFromRight: "│",
 	JunctionThrough:   "│",
+
+	SelectionHidesOtherLines: true,
 }
 
 // The lane layout uses bigger nodes and wider spacing between lanes, so that
@@ -57,6 +64,11 @@ var LaneGlyphs = &Glyphs{
 	Junction:          "┤",
 	JunctionFromRight: "├",
 	JunctionThrough:   "┼",
+
+	// Lanes don't move, so the highlight color is enough to tell the selected
+	// commit's lines apart, and hiding parts of other lines would make them
+	// look as if they ended there.
+	SelectionHidesOtherLines: false,
 }
 
 type cellType int
