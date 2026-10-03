@@ -94,6 +94,7 @@ func GetCommitListDisplayStrings(
 	// function expects to be passed the index of the commit in terms of the `commits` slice
 	var getGraphLine func(int) string
 	isDimmed := func(*models.Commit) bool { return false }
+	showRefLabels := false
 	if showGraph {
 		graphStyle := common.UserConfig().Git.Log.GraphStyle
 		glyphs := graphGlyphs(graphStyle)
@@ -165,13 +166,23 @@ func GetCommitListDisplayStrings(
 			pipeSetOffset := max(startIdx-rebaseOffset, 0)
 			graphPipeSets := pipeSets[pipeSetOffset:max(endIdx-rebaseOffset, 0)]
 			graphCommits := commits[graphOffset:endIdx]
+			showRefLabels = graphStyle == "lanes" && lo.SomeBy(commits, func(commit *models.Commit) bool { return commit.ExtraInfo != "" })
+			var refLabels refLabelColumn
+			var hasLabel func(*models.Commit) bool
+			if showRefLabels {
+				refLabels = newRefLabelColumn(graphCommits, branches)
+				hasLabel = refLabels.hasLabel
+			}
 			graphLines := graph.RenderAux(
 				graphPipeSets,
 				graphCommits,
 				selectedCommitHashPtr,
 				glyphs,
-				nil,
+				hasLabel,
 			)
+			if showRefLabels {
+				graphLines = refLabels.prependTo(graphLines, graphPipeSets, icons.IsIconEnabled())
+			}
 			getGraphLine = func(idx int) string {
 				if idx >= graphOffset {
 					return graphLines[idx-graphOffset]
@@ -236,6 +247,7 @@ func GetCommitListDisplayStrings(
 			parseEmoji,
 			getGraphLine(unfilteredIdx),
 			isDimmed(commit),
+			showRefLabels,
 			fullDescription,
 			bisectStatus,
 			bisectInfo,
@@ -521,6 +533,7 @@ func displayCommit(
 	parseEmoji bool,
 	graphLine string,
 	dimmed bool,
+	showRefLabels bool,
 	fullDescription bool,
 	bisectStatus BisectStatus,
 	bisectInfo *git_commands.BisectInfo,
@@ -562,7 +575,9 @@ func displayCommit(
 	}
 
 	tagString := ""
-	if fullDescription {
+	if showRefLabels {
+		// the labels in front of the graph show the refs
+	} else if fullDescription {
 		if commit.ExtraInfo != "" {
 			tagString = style.FgMagenta.SetBold().Sprint(commit.ExtraInfo) + " "
 		}

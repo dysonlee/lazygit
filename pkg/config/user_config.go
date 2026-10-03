@@ -437,7 +437,8 @@ type LogConfig struct {
 	// How the git graph is laid out. One of 'classic' | 'lanes'
 	// 'classic' keeps the graph narrow by moving branches into any column that frees up.
 	// 'lanes' keeps every branch in a fixed column from top to bottom, gives every branch its own color instead of the color of its author, and draws bigger nodes with more space between the columns, which makes it easier to follow branches that merge into each other, at the cost of a wider graph.
-	// When `gui.nerdFontsVersion` is set, 'lanes' draws its nodes with the bigger circles of the Nerd Font.
+	// 'lanes' also shows the branches and tags of a commit as a label in front of the graph, colored like the commit's branch, instead of in front of the commit message.
+	// When `gui.nerdFontsVersion` is set, 'lanes' draws its nodes with the bigger circles of the Nerd Font, and its labels with icons for local branches, remote branches, and tags.
 	GraphStyle string `yaml:"graphStyle" jsonschema:"enum=classic,enum=lanes"`
 	// If true (default), the 'lanes' graph style draws the commits that are not reachable from HEAD in faint text, which is useful when showing the whole graph.
 	DimUnreachableCommits bool `yaml:"dimUnreachableCommits"`

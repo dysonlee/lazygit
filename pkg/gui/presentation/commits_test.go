@@ -288,6 +288,28 @@ func TestGetCommitListDisplayStrings(t *testing.T) {
 						`),
 		},
 		{
+			testName: "showing graph in lanes style, with labels for branches and tags",
+			commitOpts: []models.NewCommitOpts{
+				{Name: "commit1", Hash: "hash1", Parents: []string{"hash2"}, ExtraInfo: "(HEAD -> main, origin/main)"},
+				{Name: "commit2", Hash: "hash2", Parents: []string{"hash3"}},
+				{Name: "commit3", Hash: "hash3", Parents: []string{}, ExtraInfo: "(tag: v1)", Tags: []string{"v1"}},
+			},
+			branches:                  []*models.Branch{{Name: "main", CommitHash: "hash1"}},
+			currentBranchName:         "main",
+			startIdx:                  0,
+			endIdx:                    3,
+			showGraph:                 true,
+			graphStyle:                "lanes",
+			bisectInfo:                git_commands.NewNullBisectInfo(),
+			cherryPickedCommitHashSet: set.New[string](),
+			now:                       time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+			expected: formatExpected(`
+		hash1  ✓ main ────────────●  commit1
+		hash2                     ●  commit2
+		hash3  v1 ────────────────●  commit3
+						`),
+		},
+		{
 			testName: "showing graph, including rebase commits",
 			commitOpts: []models.NewCommitOpts{
 				{Name: "commit1", Hash: "hash1", Parents: []string{"hash2", "hash3"}, Action: todo.Pick},

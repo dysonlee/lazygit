@@ -552,8 +552,12 @@ git:
     # branch its own color instead of the color of its author, and draws bigger
     # nodes with more space between the columns, which makes it easier to follow
     # branches that merge into each other, at the cost of a wider graph.
+    # 'lanes' also shows the branches and tags of a commit as a label in front of
+    # the graph, colored like the commit's branch, instead of in front of the commit
+    # message.
     # When `gui.nerdFontsVersion` is set, 'lanes' draws its nodes with the bigger
-    # circles of the Nerd Font.
+    # circles of the Nerd Font, and its labels with icons for local branches, remote
+    # branches, and tags.
     graphStyle: classic
 
     # If true (default), the 'lanes' graph style draws the commits that are not
