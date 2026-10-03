@@ -226,25 +226,33 @@ func TestRenderCommitGraph(t *testing.T) {
 				func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
 			lines := RenderCommitGraph(commits, hashPool.Add("blah"), getStyle, ClassicGlyphs)
 
-			trimmedExpectedOutput := ""
-			for line := range strings.SplitSeq(strings.TrimPrefix(test.expectedOutput, "\n"), "\n") {
-				trimmedExpectedOutput += strings.TrimSpace(line) + "\n"
-			}
-
-			t.Log("\nexpected: \n" + trimmedExpectedOutput)
-
-			output := ""
-			for i, line := range lines {
-				description := test.commitOpts[i].Hash
-				output += strings.TrimSpace(description+" "+utils.Decolorise(line)) + "\n"
-			}
-			t.Log("\nactual: \n" + output)
-
-			assert.Equal(t,
-				trimmedExpectedOutput,
-				output)
+			assertGraphOutput(t, test.expectedOutput, test.commitOpts, lines)
 		})
 	}
+}
+
+// assertGraphOutput compares rendered graph lines, each prefixed with the
+// hash of its commit, against an indented multi-line expectation.
+func assertGraphOutput(t *testing.T, expectedOutput string, commitOpts []models.NewCommitOpts, lines []string) {
+	t.Helper()
+
+	trimmedExpectedOutput := ""
+	for line := range strings.SplitSeq(strings.TrimPrefix(expectedOutput, "\n"), "\n") {
+		trimmedExpectedOutput += strings.TrimSpace(line) + "\n"
+	}
+
+	t.Log("\nexpected: \n" + trimmedExpectedOutput)
+
+	output := ""
+	for i, line := range lines {
+		description := commitOpts[i].Hash
+		output += strings.TrimSpace(description+" "+utils.Decolorise(line)) + "\n"
+	}
+	t.Log("\nactual: \n" + output)
+
+	assert.Equal(t,
+		trimmedExpectedOutput,
+		output)
 }
 
 func TestRenderPipeSet(t *testing.T) {
