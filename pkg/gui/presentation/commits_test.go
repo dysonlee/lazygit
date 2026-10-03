@@ -709,7 +709,7 @@ func TestGraphColorsFollowTheAuthorColors(t *testing.T) {
 	}
 	renderGraph := func() string {
 		pipeSets, _ := loadPipesets(commits, "classic", false)
-		return strings.Join(graph.RenderAux(pipeSets, commits, nil, graph.ClassicGlyphs), "\n")
+		return strings.Join(graph.RenderAux(pipeSets, commits, nil, graph.ClassicGlyphs, nil), "\n")
 	}
 
 	authors.SetCustomAuthors(map[string]string{"Jane Doe": "red"})
@@ -732,7 +732,7 @@ func TestLaneGraphColorsDoNotFollowTheAuthorColors(t *testing.T) {
 
 	authors.SetCustomAuthors(map[string]string{"Jane Doe": "red"})
 	pipeSets, _ := loadPipesets(commits, "lanes", false)
-	renderedGraph := strings.Join(graph.RenderAux(pipeSets, commits, nil, graph.LaneGlyphs), "\n")
+	renderedGraph := strings.Join(graph.RenderAux(pipeSets, commits, nil, graph.LaneGlyphs, nil), "\n")
 
 	assert.Contains(t, renderedGraph, graph.LaneStyle(0).Sprint(graph.LaneGlyphs.Commit))
 	assert.NotContains(t, renderedGraph, style.FgRed.Sprint(graph.LaneGlyphs.Commit))

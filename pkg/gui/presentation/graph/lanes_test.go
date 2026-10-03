@@ -17,6 +17,7 @@ func TestRenderLaneGraph(t *testing.T) {
 		name           string
 		commitOpts     []models.NewCommitOpts
 		selectedHash   string
+		labelled       []string
 		expectedOutput string
 	}{
 		{
@@ -122,6 +123,19 @@ func TestRenderLaneGraph(t *testing.T) {
 			p ●──╯`,
 		},
 		{
+			name: "a line connects the label of a commit to its node, through the lanes to its left",
+			commitOpts: []models.NewCommitOpts{
+				{Hash: "a", Parents: []string{"b"}},
+				{Hash: "c", Parents: []string{"b"}},
+				{Hash: "b", Parents: []string{"d"}},
+			},
+			labelled: []string{"c"},
+			expectedOutput: `
+			a ●
+			c │──●
+			b ●──╯`,
+		},
+		{
 			name: "a commit stays in the lane of its first-parent chain rather than the leftmost lane waiting for it",
 			commitOpts: []models.NewCommitOpts{
 				{Hash: "m", Parents: []string{"p", "x"}},
@@ -184,7 +198,8 @@ func TestRenderLaneGraph(t *testing.T) {
 			commits := lo.Map(test.commitOpts,
 				func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
 			pipeSets := GetLanePipeSets(commits, getStyle)
-			lines := RenderAux(pipeSets, commits, hashPool.Add(lo.CoalesceOrEmpty(test.selectedHash, "blah")), LaneGlyphs)
+			hasLabel := func(commit *models.Commit) bool { return lo.Contains(test.labelled, commit.Hash()) }
+			lines := RenderAux(pipeSets, commits, hashPool.Add(lo.CoalesceOrEmpty(test.selectedHash, "blah")), LaneGlyphs, hasLabel)
 
 			assertGraphOutput(t, test.expectedOutput, test.commitOpts, lines)
 		})
@@ -203,7 +218,7 @@ func BenchmarkRenderLaneGraph(b *testing.B) {
 	}
 	b.ResetTimer()
 	for b.Loop() {
-		RenderAux(GetLanePipeSets(commits, getStyle), commits, hashPool.Add("selected"), LaneGlyphs)
+		RenderAux(GetLanePipeSets(commits, getStyle), commits, hashPool.Add("selected"), LaneGlyphs, nil)
 	}
 }
 

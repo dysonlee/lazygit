@@ -215,6 +215,19 @@ func (cell *Cell) setRight(style *style.TextStyle, override bool) *Cell {
 	return cell
 }
 
+// connectHorizontally adds a line through the cell from left to right, in the
+// given style unless the cell already has lines of its own.
+func (cell *Cell) connectHorizontally(style *style.TextStyle) {
+	if !cell.up && !cell.down && !cell.left && !cell.right {
+		cell.style = style
+	}
+	cell.left = true
+	cell.right = true
+	if cell.rightStyle == nil {
+		cell.rightStyle = style
+	}
+}
+
 func (cell *Cell) setStyle(style *style.TextStyle) *Cell {
 	cell.style = style
 	return cell

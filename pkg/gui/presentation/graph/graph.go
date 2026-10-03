@@ -51,7 +51,7 @@ func RenderCommitGraph(commits []*models.Commit, selectedCommitHashPtr *string, 
 		return nil
 	}
 
-	lines := RenderAux(pipeSets, commits, selectedCommitHashPtr, glyphs)
+	lines := RenderAux(pipeSets, commits, selectedCommitHashPtr, glyphs, nil)
 
 	return lines
 }
@@ -69,7 +69,11 @@ func GetPipeSets(commits []*models.Commit, getStyle func(c *models.Commit) *styl
 	})
 }
 
-func RenderAux(pipeSets [][]Pipe, commits []*models.Commit, selectedCommitHashPtr *string, glyphs *Glyphs) []string {
+// RenderAux renders the rows of the given pipe sets. If hasLabel is not nil,
+// the rows of the commits that it returns true for get a line from the left
+// edge to the commit, which connects the commit to a label in front of the
+// graph.
+func RenderAux(pipeSets [][]Pipe, commits []*models.Commit, selectedCommitHashPtr *string, glyphs *Glyphs, hasLabel func(*models.Commit) bool) []string {
 	maxProcs := runtime.GOMAXPROCS(0)
 
 	minCells := 0
@@ -98,7 +102,8 @@ func RenderAux(pipeSets [][]Pipe, commits []*models.Commit, selectedCommitHashPt
 				if k > 0 {
 					prevCommit = commits[k-1]
 				}
-				line := renderPipeSet(pipeSet, selectedCommitHashPtr, prevCommit, glyphs, minCells)
+				connectFromLeft := hasLabel != nil && hasLabel(commits[k])
+				line := renderPipeSet(pipeSet, selectedCommitHashPtr, prevCommit, glyphs, minCells, connectFromLeft)
 				innerLines = append(innerLines, line)
 			}
 			chunks[i] = innerLines
@@ -298,6 +303,7 @@ func renderPipeSet(
 	prevCommit *models.Commit,
 	glyphs *Glyphs,
 	minCells int,
+	connectFromLeft bool,
 ) string {
 	maxPos := int16(0)
 	commitPos := int16(0)
@@ -370,6 +376,14 @@ func renderPipeSet(
 		}
 	}
 
+	if connectFromLeft {
+		// The line is drawn in the color of the commit, behind the lines
+		// that are already there.
+		for i := range commitPos {
+			cells[i].connectHorizontally(CommitStyle(pipes))
+		}
+	}
+
 	if glyphs.SelectionHidesOtherLines {
 		for _, pipe := range selectedPipes {
 			for i := pipe.left(); i <= pipe.right(); i++ {
@@ -420,6 +434,21 @@ func markJunctions(cells []*Cell, pipes []Pipe, commitPos int16) {
 			}
 		}
 	}
+}
+
+// CommitStyle returns the style of the node of the commit of a graph row, given
+// the row's pipes.
+func CommitStyle(pipes []Pipe) *style.TextStyle {
+	return commitPipe(pipes).style
+}
+
+// commitPipe returns the pipe from the commit of a graph row to its first
+// parent (or to the empty tree for a root commit).
+func commitPipe(pipes []Pipe) Pipe {
+	pipe, _ := lo.Find(pipes, func(pipe Pipe) bool {
+		return pipe.kind == STARTS && pipe.fromPos == pipe.toPos
+	})
+	return pipe
 }
 
 func equalHashes(a, b *string) bool {
