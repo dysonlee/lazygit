@@ -48,6 +48,7 @@ func TestGetCommitListDisplayStrings(t *testing.T) {
 		startIdx                  int
 		endIdx                    int
 		showGraph                 bool
+		graphStyle                string
 		bisectInfo                *git_commands.BisectInfo
 		expected                  string
 		focus                     bool
@@ -215,6 +216,52 @@ func TestGetCommitListDisplayStrings(t *testing.T) {
 		hash3 ○─╯ commit3
 		hash4 ○ commit4
 		hash5 ○ commit5
+						`),
+		},
+		{
+			testName: "showing graph in lanes style",
+			commitOpts: []models.NewCommitOpts{
+				{Name: "commit1", Hash: "hash1", Parents: []string{"hash4", "hash3"}},
+				{Name: "commit2", Hash: "hash2", Parents: []string{"hash3"}},
+				{Name: "commit3", Hash: "hash3", Parents: []string{"hash4"}},
+				{Name: "commit4", Hash: "hash4", Parents: []string{"hash5"}},
+				{Name: "commit5", Hash: "hash5", Parents: []string{"hash6"}},
+			},
+			startIdx:                  0,
+			endIdx:                    5,
+			showGraph:                 true,
+			graphStyle:                "lanes",
+			bisectInfo:                git_commands.NewNullBisectInfo(),
+			cherryPickedCommitHashSet: set.New[string](),
+			now:                       time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+			expected: formatExpected(`
+		hash1 ◎─╮ commit1
+		hash2 │ │ ○ commit2
+		hash3 │ ╰─○ commit3
+		hash4 ○───╯ commit4
+		hash5 ○ commit5
+						`),
+		},
+		{
+			testName: "showing graph in lanes style, with a junction",
+			commitOpts: []models.NewCommitOpts{
+				{Name: "commit1", Hash: "hash1", Parents: []string{"hash4", "hash2"}},
+				{Name: "commit2", Hash: "hash2", Parents: []string{"hash4"}},
+				{Name: "commit3", Hash: "hash3", Parents: []string{"hash4"}},
+				{Name: "commit4", Hash: "hash4", Parents: []string{"hash5", "hash6"}},
+			},
+			startIdx:                  0,
+			endIdx:                    4,
+			showGraph:                 true,
+			graphStyle:                "lanes",
+			bisectInfo:                git_commands.NewNullBisectInfo(),
+			cherryPickedCommitHashSet: set.New[string](),
+			now:                       time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+			expected: formatExpected(`
+		hash1 ◎─╮ commit1
+		hash2 │ ○ commit2
+		hash3 │ │ ○ commit3
+		hash4 ◎─┼─╯ commit4
 						`),
 		},
 		{
@@ -589,6 +636,7 @@ func TestGetCommitListDisplayStrings(t *testing.T) {
 		if !focusing || s.focus {
 			t.Run(s.testName, func(t *testing.T) {
 				hashPool := &utils.StringPool{}
+				common.UserConfig().Git.Log.GraphStyle = lo.CoalesceOrEmpty(s.graphStyle, "classic")
 
 				commits := lo.Map(s.commitOpts,
 					func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
@@ -635,7 +683,7 @@ func TestGraphColorsFollowTheAuthorColors(t *testing.T) {
 		models.NewCommit(hashPool, models.NewCommitOpts{Hash: "authorcolors2", AuthorName: "Jane Doe"}),
 	}
 	renderGraph := func() string {
-		return strings.Join(graph.RenderAux(loadPipesets(commits), commits, nil, graph.ClassicGlyphs), "\n")
+		return strings.Join(graph.RenderAux(loadPipesets(commits, "classic"), commits, nil, graph.ClassicGlyphs), "\n")
 	}
 
 	authors.SetCustomAuthors(map[string]string{"Jane Doe": "red"})

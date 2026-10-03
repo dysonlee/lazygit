@@ -25,6 +25,7 @@ type pipeSetCacheKey struct {
 	commitHash  string
 	commitCount int
 	divergence  models.Divergence
+	graphStyle  string
 }
 
 var (
@@ -82,6 +83,8 @@ func GetCommitListDisplayStrings(
 	// function expects to be passed the index of the commit in terms of the `commits` slice
 	var getGraphLine func(int) string
 	if showGraph {
+		graphStyle := common.UserConfig().Git.Log.GraphStyle
+		glyphs := lo.Ternary(graphStyle == "lanes", graph.LaneGlyphs, graph.ClassicGlyphs)
 		if len(commits) > 0 && commits[0].Divergence != models.DivergenceNone {
 			// Showing a divergence log; we know we don't have any rebasing
 			// commits in this case. But we need to render separate graphs for
@@ -96,7 +99,7 @@ func GetCommitListDisplayStrings(
 
 			if localSectionStart > 0 {
 				// we have some remote commits
-				pipeSets := loadPipesets(commits[:localSectionStart])
+				pipeSets := loadPipesets(commits[:localSectionStart], graphStyle)
 				if startIdx < localSectionStart {
 					// some of the remote commits are visible
 					start := startIdx
@@ -107,14 +110,14 @@ func GetCommitListDisplayStrings(
 						graphPipeSets,
 						graphCommits,
 						selectedCommitHashPtr,
-						graph.ClassicGlyphs,
+						glyphs,
 					)
 					allGraphLines = append(allGraphLines, graphLines...)
 				}
 			}
 			if localSectionStart < len(commits) {
 				// we have some local commits
-				pipeSets := loadPipesets(commits[localSectionStart:])
+				pipeSets := loadPipesets(commits[localSectionStart:], graphStyle)
 				if localSectionStart < endIdx {
 					// some of the local commits are visible
 					graphOffset := max(startIdx, localSectionStart)
@@ -125,7 +128,7 @@ func GetCommitListDisplayStrings(
 						graphPipeSets,
 						graphCommits,
 						selectedCommitHashPtr,
-						graph.ClassicGlyphs,
+						glyphs,
 					)
 					allGraphLines = append(allGraphLines, graphLines...)
 				}
@@ -139,7 +142,7 @@ func GetCommitListDisplayStrings(
 			// but we'll never include TODO commits as part of the graph because it'll be messy)
 			graphOffset := max(startIdx, rebaseOffset)
 
-			pipeSets := loadPipesets(commits[rebaseOffset:])
+			pipeSets := loadPipesets(commits[rebaseOffset:], graphStyle)
 			pipeSetOffset := max(startIdx-rebaseOffset, 0)
 			graphPipeSets := pipeSets[pipeSetOffset:max(endIdx-rebaseOffset, 0)]
 			graphCommits := commits[graphOffset:endIdx]
@@ -147,7 +150,7 @@ func GetCommitListDisplayStrings(
 				graphPipeSets,
 				graphCommits,
 				selectedCommitHashPtr,
-				graph.ClassicGlyphs,
+				glyphs,
 			)
 			getGraphLine = func(idx int) string {
 				if idx >= graphOffset {
@@ -308,7 +311,7 @@ func indexOfFirstNonTODOCommit(commits []*models.Commit) int {
 	return 0
 }
 
-func loadPipesets(commits []*models.Commit) [][]graph.Pipe {
+func loadPipesets(commits []*models.Commit, graphStyle string) [][]graph.Pipe {
 	if pipeSetCacheAuthorColors != authors.ColorsVersion() {
 		pipeSetCache = make(map[pipeSetCacheKey][][]graph.Pipe)
 		pipeSetCacheAuthorColors = authors.ColorsVersion()
@@ -320,6 +323,7 @@ func loadPipesets(commits []*models.Commit) [][]graph.Pipe {
 		commitHash:  commits[0].Hash(),
 		commitCount: len(commits),
 		divergence:  commits[0].Divergence,
+		graphStyle:  graphStyle,
 	}
 
 	pipeSets, ok := pipeSetCache[cacheKey]
@@ -329,7 +333,11 @@ func loadPipesets(commits []*models.Commit) [][]graph.Pipe {
 		getStyle := func(commit *models.Commit) *style.TextStyle {
 			return authors.AuthorStyle(commit.AuthorName)
 		}
-		pipeSets = graph.GetPipeSets(commits, getStyle)
+		if graphStyle == "lanes" {
+			pipeSets = graph.GetLanePipeSets(commits, getStyle)
+		} else {
+			pipeSets = graph.GetPipeSets(commits, getStyle)
+		}
 		pipeSetCache[cacheKey] = pipeSets
 	}
 

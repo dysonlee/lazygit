@@ -434,6 +434,10 @@ type LogConfig struct {
 	ShowGraph string `yaml:"showGraph" jsonschema:"enum=always,enum=never,enum=when-maximised"`
 	// displays the whole git graph by default in the commits view (equivalent to passing the `--all` argument to `git log`)
 	ShowWholeGraph bool `yaml:"showWholeGraph"`
+	// How the git graph is laid out. One of 'classic' | 'lanes'
+	// 'classic' keeps the graph narrow by moving branches into any column that frees up.
+	// 'lanes' keeps every branch in a fixed column from top to bottom, which makes it easier to follow branches that merge into each other, at the cost of a wider graph.
+	GraphStyle string `yaml:"graphStyle" jsonschema:"enum=classic,enum=lanes"`
 }
 
 type CommitPrefixConfig struct {
@@ -962,6 +966,7 @@ func GetDefaultConfigForPlatform(platform string) *UserConfig {
 				Order:          "topo-order",
 				ShowGraph:      "always",
 				ShowWholeGraph: false,
+				GraphStyle:     "classic",
 			},
 			LocalBranchSortOrder:         "date",
 			RemoteBranchSortOrder:        "date",

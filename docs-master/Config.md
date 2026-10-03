@@ -545,6 +545,14 @@ git:
     # passing the `--all` argument to `git log`)
     showWholeGraph: false
 
+    # How the git graph is laid out. One of 'classic' | 'lanes'
+    # 'classic' keeps the graph narrow by moving branches into any column that frees
+    # up.
+    # 'lanes' keeps every branch in a fixed column from top to bottom, which makes
+    # it easier to follow branches that merge into each other, at the cost of a
+    # wider graph.
+    graphStyle: classic
+
   # How branches are sorted in the local branches view.
   # One of: 'date' (default) | 'recency' | 'alphabetical'
   # Can be changed from within Lazygit with the Sort Order menu (`s`) in the

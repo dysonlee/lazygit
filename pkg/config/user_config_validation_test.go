@@ -113,6 +113,19 @@ func TestUserConfigValidate_enums(t *testing.T) {
 			},
 		},
 		{
+			name: "Git.Log.GraphStyle",
+			setup: func(config *UserConfig, value string) {
+				config.Git.Log.GraphStyle = value
+			},
+			testCases: []testCase{
+				{value: "classic", valid: true},
+				{value: "lanes", valid: true},
+
+				{value: "", valid: false},
+				{value: "invalid_value", valid: false},
+			},
+		},
+		{
 			name: "Keybindings",
 			setup: func(config *UserConfig, value string) {
 				config.Keybinding.Universal.Quit = Keybinding{value}

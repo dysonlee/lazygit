@@ -50,6 +50,10 @@ func (config *UserConfig) Validate() error {
 		[]string{"always", "never", "when-maximised"}); err != nil {
 		return err
 	}
+	if err := validateEnum("git.log.graphStyle", config.Git.Log.GraphStyle,
+		[]string{"classic", "lanes"}); err != nil {
+		return err
+	}
 	if err := validateDiffRenderers(config.Git.DiffRenderers); err != nil {
 		return err
 	}

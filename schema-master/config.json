@@ -3914,6 +3914,15 @@
           "type": "boolean",
           "description": "displays the whole git graph by default in the commits view (equivalent to passing the `--all` argument to `git log`)",
           "default": false
+        },
+        "graphStyle": {
+          "type": "string",
+          "enum": [
+            "classic",
+            "lanes"
+          ],
+          "description": "How the git graph is laid out. One of 'classic' | 'lanes'\n'classic' keeps the graph narrow by moving branches into any column that frees up.\n'lanes' keeps every branch in a fixed column from top to bottom, which makes it easier to follow branches that merge into each other, at the cost of a wider graph.",
+          "default": "classic"
         }
       },
       "additionalProperties": false,
