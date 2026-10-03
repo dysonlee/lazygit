@@ -181,3 +181,39 @@ func mergeParentLane(lanes []lane, pos int) int {
 
 	return len(lanes)
 }
+
+// BranchTipIndex returns the index of the tip of the branch that the commit at
+// index i is on, as far as the lane graph shows it: the topmost commit of the
+// chain of first parents that the commit continues in its lane. For a branch
+// that was merged, the chain ends at the commit that the merge edge leads to.
+func BranchTipIndex(commits []*models.Commit, pipeSets [][]Pipe, i int) int {
+	for {
+		child := firstParentChildIndex(commits, pipeSets, i)
+		if child == -1 {
+			return i
+		}
+		i = child
+	}
+}
+
+// firstParentChildIndex returns the index of the commit whose edge to its first
+// parent comes down the lane into the commit at index i, or -1 if there is none.
+func firstParentChildIndex(commits []*models.Commit, pipeSets [][]Pipe, i int) int {
+	pos := CommitPos(pipeSets[i])
+	incoming, found := lo.Find(pipeSets[i], func(pipe Pipe) bool {
+		return pipe.kind == TERMINATES && pipe.fromPos == pos && pipe.toPos == pos
+	})
+	if !found {
+		return -1
+	}
+
+	for j := i - 1; j >= 0; j-- {
+		if commits[j].HashPtr() == incoming.fromHash {
+			if len(commits[j].ParentPtrs()) > 0 && commits[j].ParentPtrs()[0] == commits[i].HashPtr() {
+				return j
+			}
+			return -1
+		}
+	}
+	return -1
+}

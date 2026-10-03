@@ -442,6 +442,12 @@ func CommitStyle(pipes []Pipe) *style.TextStyle {
 	return commitPipe(pipes).style
 }
 
+// CommitPos returns the position of the commit of a graph row, given the row's
+// pipes.
+func CommitPos(pipes []Pipe) int16 {
+	return commitPipe(pipes).fromPos
+}
+
 // commitPipe returns the pipe from the commit of a graph row to its first
 // parent (or to the empty tree for a root commit).
 func commitPipe(pipes []Pipe) Pipe {

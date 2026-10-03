@@ -170,7 +170,8 @@ func GetCommitListDisplayStrings(
 			var refLabels refLabelColumn
 			var hasLabel func(*models.Commit) bool
 			if showRefLabels {
-				refLabels = newRefLabelColumn(graphCommits, branches)
+				refLabels = newRefLabelColumn(
+					commits[rebaseOffset:], pipeSets, graphOffset-rebaseOffset, endIdx-rebaseOffset, branches, selectedCommitHashPtr)
 				hasLabel = refLabels.hasLabel
 			}
 			graphLines := graph.RenderAux(
@@ -181,7 +182,7 @@ func GetCommitListDisplayStrings(
 				hasLabel,
 			)
 			if showRefLabels {
-				graphLines = refLabels.prependTo(graphLines, graphPipeSets, icons.IsIconEnabled())
+				graphLines = refLabels.prependTo(graphLines, icons.IsIconEnabled())
 			}
 			getGraphLine = func(idx int) string {
 				if idx >= graphOffset {

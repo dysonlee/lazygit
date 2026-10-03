@@ -265,3 +265,38 @@ func TestLaneGraphColors(t *testing.T) {
 		})
 	}
 }
+
+func TestBranchTipIndex(t *testing.T) {
+	commitOpts := []models.NewCommitOpts{
+		{Hash: "main", Parents: []string{"m"}},
+		{Hash: "m", Parents: []string{"p", "f2"}},
+		{Hash: "f2", Parents: []string{"f1"}},
+		{Hash: "f1", Parents: []string{"p"}},
+		{Hash: "other", Parents: []string{"p"}},
+		{Hash: "p", Parents: []string{"q"}},
+	}
+	tests := []struct {
+		selected    string
+		expectedTip string
+	}{
+		{selected: "main", expectedTip: "main"},
+		{selected: "m", expectedTip: "main"},
+		{selected: "p", expectedTip: "main"},
+		{selected: "f2", expectedTip: "f2"},
+		{selected: "f1", expectedTip: "f2"},
+		{selected: "other", expectedTip: "other"},
+	}
+
+	hashPool := &utils.StringPool{}
+	commits := lo.Map(commitOpts, func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
+	pipeSets := GetLanePipeSets(commits, func(int, *models.Commit) *style.TextStyle { return &style.FgDefault })
+	for _, test := range tests {
+		t.Run(test.selected, func(t *testing.T) {
+			_, selectedIdx, _ := lo.FindIndexOf(commits, func(c *models.Commit) bool { return c.Hash() == test.selected })
+
+			tipIdx := BranchTipIndex(commits, pipeSets, selectedIdx)
+
+			assert.Equal(t, test.expectedTip, commits[tipIdx].Hash())
+		})
+	}
+}

@@ -113,18 +113,45 @@ const refLabelsWidth = 20
 // The labels of the commits of the rows of the graph that are rendered
 type refLabelColumn struct {
 	labels   [][]refLabel
-	labelled *set.Set[*string]
+	pipeSets [][]graph.Pipe
+	// whether the labels of a row are those of the branch that the commit is
+	// on rather than of refs pointing at the commit itself
+	branchLabel []bool
+	labelled    *set.Set[*string]
 }
 
-func newRefLabelColumn(commits []*models.Commit, branches []*models.Branch) refLabelColumn {
+// newRefLabelColumn returns the labels of the commits in the range
+// [start, end) of the graph's commits. If the selected commit is among them
+// and has no refs of its own, it gets the labels of the tip of the branch it
+// is on, so that it's clear which branch it belongs to.
+func newRefLabelColumn(
+	commits []*models.Commit,
+	pipeSets [][]graph.Pipe,
+	start int,
+	end int,
+	branches []*models.Branch,
+	selectedCommitHashPtr *string,
+) refLabelColumn {
 	localBranchNames := set.NewFromSlice(lo.Map(branches, func(branch *models.Branch, _ int) string { return branch.Name }))
-	labels := lo.Map(commits, func(commit *models.Commit, _ int) []refLabel {
+	visibleCommits := commits[start:end]
+	labels := lo.Map(visibleCommits, func(commit *models.Commit, _ int) []refLabel {
 		return commitRefLabels(commit, localBranchNames)
 	})
-	labelled := set.NewFromSlice(lo.FilterMap(commits, func(commit *models.Commit, i int) (*string, bool) {
+	branchLabel := make([]bool, len(visibleCommits))
+
+	_, selectedIdx, selectedIsVisible := lo.FindIndexOf(visibleCommits, func(commit *models.Commit) bool {
+		return commit.HashPtr() == selectedCommitHashPtr
+	})
+	if selectedIsVisible && len(labels[selectedIdx]) == 0 {
+		tipIdx := graph.BranchTipIndex(commits, pipeSets, start+selectedIdx)
+		labels[selectedIdx] = commitRefLabels(commits[tipIdx], localBranchNames)
+		branchLabel[selectedIdx] = true
+	}
+
+	labelled := set.NewFromSlice(lo.FilterMap(visibleCommits, func(commit *models.Commit, i int) (*string, bool) {
 		return commit.HashPtr(), len(labels[i]) > 0
 	}))
-	return refLabelColumn{labels: labels, labelled: labelled}
+	return refLabelColumn{labels: labels, pipeSets: pipeSets[start:end], branchLabel: branchLabel, labelled: labelled}
 }
 
 func (self refLabelColumn) hasLabel(commit *models.Commit) bool {
@@ -132,11 +159,14 @@ func (self refLabelColumn) hasLabel(commit *models.Commit) bool {
 }
 
 // prependTo puts the labels in front of the graph lines, colored like the
-// commits they belong to.
-func (self refLabelColumn) prependTo(graphLines []string, pipeSets [][]graph.Pipe, withIcons bool) []string {
+// commits they belong to. The label of the branch of a commit shows in the
+// color of the commit's lane, without a background, to tell it apart from the
+// labels of refs pointing at the commit.
+func (self refLabelColumn) prependTo(graphLines []string, withIcons bool) []string {
 	return lo.Map(graphLines, func(graphLine string, i int) string {
-		commitStyle := graph.CommitStyle(pipeSets[i])
-		labels := renderRefLabels(self.labels[i], refLabelsWidth, graph.LaneLabelStyle(commitStyle), commitStyle, withIcons)
+		commitStyle := graph.CommitStyle(self.pipeSets[i])
+		labelStyle := lo.Ternary(self.branchLabel[i], commitStyle, graph.LaneLabelStyle(commitStyle))
+		labels := renderRefLabels(self.labels[i], refLabelsWidth, labelStyle, commitStyle, withIcons)
 		return labels + graphLine
 	})
 }
