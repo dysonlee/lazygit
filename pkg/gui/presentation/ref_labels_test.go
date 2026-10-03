@@ -104,7 +104,7 @@ func TestBranchNameOfCommit(t *testing.T) {
 		{Hash: "branchname-todo", Parents: []string{"branchname-main"}, Action: todo.Pick},
 		{Hash: "branchname-main", Parents: []string{"branchname-merge"}, ExtraInfo: "(HEAD -> main, origin/main)"},
 		{Hash: "branchname-merge", Parents: []string{"branchname-base", "branchname-feature"}},
-		{Hash: "branchname-feature", Parents: []string{"branchname-base"}},
+		{Hash: "branchname-feature", Parents: []string{"branchname-base"}, ExtraInfo: "(tag: v1)"},
 		{Hash: "branchname-base", Parents: []string{}},
 	}
 	tests := []struct {
@@ -114,18 +114,18 @@ func TestBranchNameOfCommit(t *testing.T) {
 		expected   string
 	}{
 		{name: "commit on the checked-out branch", graphStyle: "lanes", index: 4, expected: "main"},
-		{name: "tip of a merged branch without refs", graphStyle: "lanes", index: 3, expected: ""},
+		{name: "branch that was deleted after it was merged, with just a tag", graphStyle: "lanes", index: 3, expected: "main"},
 		{name: "rebase todo", graphStyle: "lanes", index: 0, expected: ""},
 		{name: "classic graph", graphStyle: "classic", index: 4, expected: ""},
 	}
 
 	common := common.NewDummyCommon()
 	branches := []*models.Branch{{Name: "main", CommitHash: "branchname-main"}}
+	hashPool := &utils.StringPool{}
+	commits := lo.Map(commitOpts, func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			common.UserConfig().Git.Log.GraphStyle = test.graphStyle
-			hashPool := &utils.StringPool{}
-			commits := lo.Map(commitOpts, func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
 
 			assert.Equal(t, test.expected, BranchNameOfCommit(common, commits, branches, test.index))
 		})

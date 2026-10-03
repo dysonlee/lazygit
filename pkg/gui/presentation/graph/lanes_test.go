@@ -273,8 +273,10 @@ func TestBranchTipIndex(t *testing.T) {
 		{Hash: "f2", Parents: []string{"f1"}},
 		{Hash: "f1", Parents: []string{"p"}},
 		{Hash: "other", Parents: []string{"p"}},
+		{Hash: "loose", Parents: []string{"p"}},
 		{Hash: "p", Parents: []string{"q"}},
 	}
+	branchTips := []string{"main", "other"}
 	tests := []struct {
 		selected    string
 		expectedTip string
@@ -282,19 +284,24 @@ func TestBranchTipIndex(t *testing.T) {
 		{selected: "main", expectedTip: "main"},
 		{selected: "m", expectedTip: "main"},
 		{selected: "p", expectedTip: "main"},
-		{selected: "f2", expectedTip: "f2"},
-		{selected: "f1", expectedTip: "f2"},
 		{selected: "other", expectedTip: "other"},
+		// f2 has no branch anymore, so its chain continues at the merge that
+		// it was merged in with
+		{selected: "f2", expectedTip: "main"},
+		{selected: "f1", expectedTip: "main"},
+		// neither a branch nor a merge to follow
+		{selected: "loose", expectedTip: "loose"},
 	}
 
 	hashPool := &utils.StringPool{}
 	commits := lo.Map(commitOpts, func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
 	pipeSets := GetLanePipeSets(commits, func(int, *models.Commit) *style.TextStyle { return &style.FgDefault })
+	hasBranch := func(commit *models.Commit) bool { return lo.Contains(branchTips, commit.Hash()) }
 	for _, test := range tests {
 		t.Run(test.selected, func(t *testing.T) {
 			_, selectedIdx, _ := lo.FindIndexOf(commits, func(c *models.Commit) bool { return c.Hash() == test.selected })
 
-			tipIdx := BranchTipIndex(commits, pipeSets, selectedIdx)
+			tipIdx := BranchTipIndex(commits, pipeSets, selectedIdx, hasBranch)
 
 			assert.Equal(t, test.expectedTip, commits[tipIdx].Hash())
 		})

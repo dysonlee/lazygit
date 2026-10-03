@@ -144,8 +144,7 @@ func newRefLabelColumn(
 		return commit.HashPtr() == selectedCommitHashPtr
 	})
 	if selectedIsVisible && len(labels[selectedIdx]) == 0 {
-		tipIdx := graph.BranchTipIndex(commits, pipeSets, start+selectedIdx)
-		labels[selectedIdx] = commitRefLabels(commits[tipIdx], localBranchNames)
+		labels[selectedIdx] = branchLabelsOfCommit(commits, pipeSets, start+selectedIdx, localBranchNames)
 		branchLabel[selectedIdx] = true
 	}
 
@@ -174,8 +173,8 @@ func (self refLabelColumn) prependTo(graphLines []string, withIcons bool) []stri
 
 // BranchNameOfCommit returns the name of the branch that the commit at the
 // given index is on in the lane graph (see graph.BranchTipIndex), or an empty
-// string if the commits aren't shown in the lane graph, or if the tip of the
-// branch has no refs anymore.
+// string if the commits aren't shown in the lane graph, or if there is no
+// such branch.
 func BranchNameOfCommit(common *common.Common, commits []*models.Commit, branches []*models.Branch, index int) string {
 	mutex.Lock()
 	defer mutex.Unlock()
@@ -191,11 +190,25 @@ func BranchNameOfCommit(common *common.Common, commits []*models.Commit, branche
 
 	graphCommits := commits[rebaseOffset:]
 	pipeSets, _ := loadPipesets(graphCommits, "lanes", common.UserConfig().Git.Log.DimUnreachableCommits)
-	tip := graphCommits[graph.BranchTipIndex(graphCommits, pipeSets, index-rebaseOffset)]
 	localBranchNames := set.NewFromSlice(lo.Map(branches, func(branch *models.Branch, _ int) string { return branch.Name }))
-	labels := commitRefLabels(tip, localBranchNames)
+	labels := branchLabelsOfCommit(graphCommits, pipeSets, index-rebaseOffset, localBranchNames)
 	if len(labels) == 0 {
 		return ""
 	}
 	return labels[0].name
+}
+
+// branchLabelsOfCommit returns the labels of the branches that the commit at
+// the given index is on in the lane graph (see graph.BranchTipIndex), leaving
+// out tags; or nil if there is no such branch.
+func branchLabelsOfCommit(commits []*models.Commit, pipeSets [][]graph.Pipe, index int, localBranchNames *set.Set[string]) []refLabel {
+	branchLabels := func(commit *models.Commit) []refLabel {
+		return lo.Filter(commitRefLabels(commit, localBranchNames), func(label refLabel, _ int) bool {
+			return label.local || label.remote
+		})
+	}
+	tip := graph.BranchTipIndex(commits, pipeSets, index, func(commit *models.Commit) bool {
+		return len(branchLabels(commit)) > 0
+	})
+	return branchLabels(commits[tip])
 }
