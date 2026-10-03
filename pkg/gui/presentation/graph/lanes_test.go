@@ -307,3 +307,59 @@ func TestBranchTipIndex(t *testing.T) {
 		})
 	}
 }
+
+func TestRenderLaneGraphWithBranchDrawingGlyphs(t *testing.T) {
+	tests := []struct {
+		name           string
+		commitOpts     []models.NewCommitOpts
+		expectedOutput string
+	}{
+		{
+			name: "a lane that ends where a merge edge starts",
+			commitOpts: []models.NewCommitOpts{
+				{Hash: "x", Parents: []string{"m"}},
+				{Hash: "y", Parents: []string{"m"}},
+				{Hash: "m", Parents: []string{"p", "q"}},
+				{Hash: "q", Parents: []string{"p"}},
+				{Hash: "p", Parents: []string{"r"}},
+			},
+			expectedOutput: `
+			x ●
+			y │  ●
+			m •──` + "\uf5df" + `
+			q │  ●
+			p ●──╯`,
+		},
+		{
+			name: "the same with a line passing through, and a merge edge joining a lane",
+			commitOpts: []models.NewCommitOpts{
+				{Hash: "a", Parents: []string{"m"}},
+				{Hash: "b", Parents: []string{"m"}},
+				{Hash: "c", Parents: []string{"m"}},
+				{Hash: "m", Parents: []string{"p", "q"}},
+				{Hash: "j", Parents: []string{"r", "p"}},
+				{Hash: "q", Parents: []string{"p"}},
+				{Hash: "p", Parents: []string{"s"}},
+			},
+			expectedOutput: `
+			a ●
+			b │  ●
+			c │  │  ●
+			m •──` + "\uf5e8" + `──╯
+			j ` + "\uf5dc" + `──│──•
+			q │  ●  │
+			p ●──╯  │`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			hashPool := &utils.StringPool{}
+			commits := lo.Map(test.commitOpts, func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
+			pipeSets := GetLanePipeSets(commits, func(int, *models.Commit) *style.TextStyle { return &style.FgDefault })
+			lines := RenderAux(pipeSets, commits, hashPool.Add("blah"), WithBranchDrawingGlyphs(LaneGlyphs), nil)
+
+			assertGraphOutput(t, test.expectedOutput, test.commitOpts, lines)
+		})
+	}
+}

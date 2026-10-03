@@ -54,6 +54,7 @@ func TestGetCommitListDisplayStrings(t *testing.T) {
 		graphStyle                string
 		useIcons                  bool
 		hideDateInExpandedView    bool
+		branchDrawingGlyphs       bool
 		bisectInfo                *git_commands.BisectInfo
 		expected                  string
 		focus                     bool
@@ -267,6 +268,29 @@ func TestGetCommitListDisplayStrings(t *testing.T) {
 		hash2 │  ●     commit2
 		hash3 │  │  ●  commit3
 		hash4 •──┼──╯  commit4
+						`),
+		},
+		{
+			testName: "showing graph in lanes style, with a junction drawn with branch drawing glyphs",
+			commitOpts: []models.NewCommitOpts{
+				{Name: "commit1", Hash: "glyph1", Parents: []string{"glyph4", "glyph2"}},
+				{Name: "commit2", Hash: "glyph2", Parents: []string{"glyph4"}},
+				{Name: "commit3", Hash: "glyph3", Parents: []string{"glyph4"}},
+				{Name: "commit4", Hash: "glyph4", Parents: []string{"glyph5", "glyph6"}},
+			},
+			startIdx:                  0,
+			endIdx:                    4,
+			showGraph:                 true,
+			graphStyle:                "lanes",
+			branchDrawingGlyphs:       true,
+			bisectInfo:                git_commands.NewNullBisectInfo(),
+			cherryPickedCommitHashSet: set.New[string](),
+			now:                       time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+			expected: formatExpected(`
+		glyph1 •──╮     commit1
+		glyph2 │  ●     commit2
+		glyph3 │  │  ●  commit3
+		glyph4 •──` + "\uf5e8" + `──╯  commit4
 						`),
 		},
 		{
@@ -729,6 +753,7 @@ func TestGetCommitListDisplayStrings(t *testing.T) {
 				common.UserConfig().Git.Log.GraphStyle = lo.CoalesceOrEmpty(s.graphStyle, "classic")
 				icons.SetNerdFontsVersion(lo.Ternary(s.useIcons, "3", ""))
 				common.UserConfig().Gui.ShowCommitDateInExpandedView = !s.hideDateInExpandedView
+				common.UserConfig().Git.Log.UseBranchDrawingGlyphs = s.branchDrawingGlyphs
 
 				commits := lo.Map(s.commitOpts,
 					func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })

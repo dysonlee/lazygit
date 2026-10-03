@@ -9,6 +9,7 @@ import (
 	"github.com/jesseduffield/lazygit/pkg/commands/git_commands"
 	"github.com/jesseduffield/lazygit/pkg/commands/models"
 	"github.com/jesseduffield/lazygit/pkg/common"
+	"github.com/jesseduffield/lazygit/pkg/config"
 	"github.com/jesseduffield/lazygit/pkg/gui/presentation/authors"
 	"github.com/jesseduffield/lazygit/pkg/gui/presentation/graph"
 	"github.com/jesseduffield/lazygit/pkg/gui/presentation/icons"
@@ -97,7 +98,7 @@ func GetCommitListDisplayStrings(
 	showRefLabels := false
 	if showGraph {
 		graphStyle := common.UserConfig().Git.Log.GraphStyle
-		glyphs := graphGlyphs(graphStyle)
+		glyphs := graphGlyphs(common.UserConfig().Git.Log)
 		if len(commits) > 0 && commits[0].Divergence != models.DivergenceNone {
 			// Showing a divergence log; we know we don't have any rebasing
 			// commits in this case. But we need to render separate graphs for
@@ -368,14 +369,15 @@ func headCommitIndex(commits []*models.Commit) (int, bool) {
 	return index, found
 }
 
-func graphGlyphs(graphStyle string) *graph.Glyphs {
-	if graphStyle != "lanes" {
+func graphGlyphs(logConfig config.LogConfig) *graph.Glyphs {
+	if logConfig.GraphStyle != "lanes" {
 		return graph.ClassicGlyphs
 	}
-	if icons.IsIconEnabled() {
-		return graph.LaneNerdFontGlyphs
+	glyphs := lo.Ternary(icons.IsIconEnabled(), graph.LaneNerdFontGlyphs, graph.LaneGlyphs)
+	if logConfig.UseBranchDrawingGlyphs {
+		return graph.WithBranchDrawingGlyphs(glyphs)
 	}
-	return graph.LaneGlyphs
+	return glyphs
 }
 
 // loadPipesets returns the pipes of the graph of the given commits, and if

@@ -563,6 +563,12 @@ git:
     # branches, and tags.
     graphStyle: classic
 
+    # If true, the 'lanes' graph style draws the places where lines join with
+    # rounded corners, using the branch drawing characters (U+F5D0 to U+F60D) that
+    # some terminals draw themselves, e.g. kitty and Ghostty. Don't turn this on
+    # with other terminals: most fonts don't have these characters.
+    useBranchDrawingGlyphs: false
+
     # If true (default), the 'lanes' graph style draws the commits that are not
     # reachable from HEAD in faint text, which is useful when showing the whole
     # graph.

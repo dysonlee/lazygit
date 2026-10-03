@@ -442,6 +442,8 @@ type LogConfig struct {
 	// 'lanes' also shows the branches and tags of a commit as a label in front of the graph, colored like the commit's branch, instead of in front of the commit message.
 	// When `gui.nerdFontsVersion` is set, 'lanes' draws its nodes with the bigger circles of the Nerd Font, and its labels with icons for local branches, remote branches, and tags.
 	GraphStyle string `yaml:"graphStyle" jsonschema:"enum=classic,enum=lanes"`
+	// If true, the 'lanes' graph style draws the places where lines join with rounded corners, using the branch drawing characters (U+F5D0 to U+F60D) that some terminals draw themselves, e.g. kitty and Ghostty. Don't turn this on with other terminals: most fonts don't have these characters.
+	UseBranchDrawingGlyphs bool `yaml:"useBranchDrawingGlyphs"`
 	// If true (default), the 'lanes' graph style draws the commits that are not reachable from HEAD in faint text, which is useful when showing the whole graph.
 	DimUnreachableCommits bool `yaml:"dimUnreachableCommits"`
 }

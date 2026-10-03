@@ -106,6 +106,19 @@ type Cell struct {
 	style                 *style.TextStyle
 }
 
+// WithBranchDrawingGlyphs returns the given glyphs with the junctions drawn
+// with branch drawing characters (U+F5D0-U+F60D, as defined by flog-symbols),
+// which have rounded corners. Only some
+// terminals draw these characters themselves, e.g. kitty and Ghostty; in
+// others they are private use characters that most fonts don't have.
+func WithBranchDrawingGlyphs(glyphs *Glyphs) *Glyphs {
+	result := *glyphs
+	result.Junction = "\uf5df"          // ╮ and ╯
+	result.JunctionFromRight = "\uf5dc" // ╭ and ╰
+	result.JunctionThrough = "\uf5e8"   // ─, ╮ and ╯
+	return &result
+}
+
 func (cell *Cell) render(writer io.StringWriter, glyphs *Glyphs) {
 	var first string
 	switch cell.cellType {
