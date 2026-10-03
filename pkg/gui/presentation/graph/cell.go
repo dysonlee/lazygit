@@ -63,9 +63,11 @@ func (cell *Cell) render(writer io.StringWriter) {
 	_, _ = writer.WriteString(styledSecondChar)
 }
 
+// The rendered string depends on the color level too, which tests change.
 type rgbCacheKey struct {
 	*color.RGBStyle
-	str string
+	str   string
+	level color.Level
 }
 
 var (
@@ -77,7 +79,7 @@ func cachedSprint(style style.TextStyle, str string) string {
 	switch v := style.Style.(type) {
 	case *color.RGBStyle:
 		rgbCacheMutex.RLock()
-		key := rgbCacheKey{v, str}
+		key := rgbCacheKey{v, str, color.TermColorLevel()}
 		value, ok := rgbCache[key]
 		rgbCacheMutex.RUnlock()
 		if ok {
