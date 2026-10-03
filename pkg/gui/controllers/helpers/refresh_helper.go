@@ -819,7 +819,8 @@ func (self *RefreshHelper) refreshCommitsAndCommitFiles(captured capturedCommitS
 			commit := self.c.Contexts().LocalCommits.GetSelected()
 			if commit != nil && commit.RefName() != "" {
 				refRange := self.c.Contexts().LocalCommits.GetSelectedRefRangeForDiffFiles()
-				self.c.Contexts().CommitFiles.ReInit(commit, refRange)
+				branchName := self.c.Contexts().LocalCommits.GetSelectedBranchNameForDiffFiles()
+				self.c.Contexts().CommitFiles.ReInit(commit, refRange, branchName)
 				// Capture the diff endpoints here, on the UI thread and after
 				// ReInit has set them, before dispatching the git work.
 				capturedCommitFiles := self.captureCommitFilesState()

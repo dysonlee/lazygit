@@ -183,6 +183,11 @@ func (self *SubCommitsContext) GetSelectedRef() models.Ref {
 	return commit
 }
 
+func (self *SubCommitsContext) GetSelectedBranchNameForDiffFiles() string {
+	// The sub-commits view shows the history of the ref it was opened for
+	return ""
+}
+
 func (self *SubCommitsContext) GetSelectedRefRangeForDiffFiles() *types.RefRange {
 	commits, startIdx, endIdx := self.GetSelectedItems()
 	if commits == nil || startIdx == endIdx {

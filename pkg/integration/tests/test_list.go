@@ -113,6 +113,7 @@ var tests = []*components.IntegrationTest{
 	commit.CheckoutFileFromRangeSelectionOfCommits,
 	commit.CheckoutFileWithLocalModifications,
 	commit.Commit,
+	commit.CommitFilesTitleShowsDetails,
 	commit.CommitMultiline,
 	commit.CommitSkipHooks,
 	commit.CommitSwitchToEditor,

@@ -250,6 +250,14 @@ func (self *LocalCommitsContext) GetSelectedRef() models.Ref {
 	return commit
 }
 
+func (self *LocalCommitsContext) GetSelectedBranchNameForDiffFiles() string {
+	if self.GetSelectedRefRangeForDiffFiles() != nil {
+		return ""
+	}
+	c := self.ListContextTrait.c
+	return presentation.BranchNameOfCommit(c.Common, c.Model().Commits, c.Model().Branches, self.GetSelectedLineIdx())
+}
+
 func (self *LocalCommitsContext) GetSelectedRefRangeForDiffFiles() *types.RefRange {
 	commits, startIdx, endIdx := self.GetSelectedItems()
 	if commits == nil || startIdx == endIdx {

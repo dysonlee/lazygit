@@ -61,6 +61,10 @@ func (self *StashContext) GetSelectedRef() models.Ref {
 	return stash
 }
 
+func (self *StashContext) GetSelectedBranchNameForDiffFiles() string {
+	return ""
+}
+
 func (self *StashContext) GetSelectedRefRangeForDiffFiles() *types.RefRange {
 	// It doesn't make much sense to show a range diff between two stash entries.
 	return nil

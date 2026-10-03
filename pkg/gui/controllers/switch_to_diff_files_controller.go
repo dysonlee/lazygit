@@ -16,6 +16,9 @@ type CanSwitchToDiffFiles interface {
 	CanRebase() bool
 	GetSelectedRef() models.Ref
 	GetSelectedRefRangeForDiffFiles() *types.RefRange
+	// The branch that the selected commit is on, or an empty string if
+	// unknown or not applicable
+	GetSelectedBranchNameForDiffFiles() string
 }
 
 // Not using our ListControllerTrait because we have our own way of working with
@@ -81,7 +84,7 @@ func (self *SwitchToDiffFilesController) enter() error {
 	}
 
 	commitFilesContext.ClearFilter()
-	commitFilesContext.ReInit(ref, refsRange)
+	commitFilesContext.ReInit(ref, refsRange, self.context.GetSelectedBranchNameForDiffFiles())
 	commitFilesContext.SetSelection(0)
 	commitFilesContext.SetCanRebase(canRebase)
 	commitFilesContext.SetParentContext(self.context)

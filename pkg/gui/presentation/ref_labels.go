@@ -7,6 +7,7 @@ import (
 
 	"github.com/jesseduffield/generics/set"
 	"github.com/jesseduffield/lazygit/pkg/commands/models"
+	"github.com/jesseduffield/lazygit/pkg/common"
 	"github.com/jesseduffield/lazygit/pkg/gui/presentation/graph"
 	"github.com/jesseduffield/lazygit/pkg/gui/style"
 	"github.com/jesseduffield/lazygit/pkg/utils"
@@ -169,4 +170,32 @@ func (self refLabelColumn) prependTo(graphLines []string, withIcons bool) []stri
 		labels := renderRefLabels(self.labels[i], refLabelsWidth, labelStyle, commitStyle, withIcons)
 		return labels + graphLine
 	})
+}
+
+// BranchNameOfCommit returns the name of the branch that the commit at the
+// given index is on in the lane graph (see graph.BranchTipIndex), or an empty
+// string if the commits aren't shown in the lane graph, or if the tip of the
+// branch has no refs anymore.
+func BranchNameOfCommit(common *common.Common, commits []*models.Commit, branches []*models.Branch, index int) string {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	if common.UserConfig().Git.Log.GraphStyle != "lanes" {
+		return ""
+	}
+
+	rebaseOffset := indexOfFirstNonTODOCommit(commits)
+	if index < rebaseOffset || index >= len(commits) {
+		return ""
+	}
+
+	graphCommits := commits[rebaseOffset:]
+	pipeSets, _ := loadPipesets(graphCommits, "lanes", common.UserConfig().Git.Log.DimUnreachableCommits)
+	tip := graphCommits[graph.BranchTipIndex(graphCommits, pipeSets, index-rebaseOffset)]
+	localBranchNames := set.NewFromSlice(lo.Map(branches, func(branch *models.Branch, _ int) string { return branch.Name }))
+	labels := commitRefLabels(tip, localBranchNames)
+	if len(labels) == 0 {
+		return ""
+	}
+	return labels[0].name
 }

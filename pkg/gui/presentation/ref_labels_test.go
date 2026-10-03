@@ -5,8 +5,11 @@ import (
 
 	"github.com/jesseduffield/generics/set"
 	"github.com/jesseduffield/lazygit/pkg/commands/models"
+	"github.com/jesseduffield/lazygit/pkg/common"
 	"github.com/jesseduffield/lazygit/pkg/gui/style"
 	"github.com/jesseduffield/lazygit/pkg/utils"
+	"github.com/samber/lo"
+	"github.com/stefanhaller/git-todo-parser/todo"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -92,6 +95,39 @@ func TestRenderRefLabels(t *testing.T) {
 			rendered := renderRefLabels(test.labels, 16, &style.FgDefault, &style.FgDefault, test.withIcons)
 
 			assert.Equal(t, test.expected, utils.Decolorise(rendered))
+		})
+	}
+}
+
+func TestBranchNameOfCommit(t *testing.T) {
+	commitOpts := []models.NewCommitOpts{
+		{Hash: "branchname-todo", Parents: []string{"branchname-main"}, Action: todo.Pick},
+		{Hash: "branchname-main", Parents: []string{"branchname-merge"}, ExtraInfo: "(HEAD -> main, origin/main)"},
+		{Hash: "branchname-merge", Parents: []string{"branchname-base", "branchname-feature"}},
+		{Hash: "branchname-feature", Parents: []string{"branchname-base"}},
+		{Hash: "branchname-base", Parents: []string{}},
+	}
+	tests := []struct {
+		name       string
+		graphStyle string
+		index      int
+		expected   string
+	}{
+		{name: "commit on the checked-out branch", graphStyle: "lanes", index: 4, expected: "main"},
+		{name: "tip of a merged branch without refs", graphStyle: "lanes", index: 3, expected: ""},
+		{name: "rebase todo", graphStyle: "lanes", index: 0, expected: ""},
+		{name: "classic graph", graphStyle: "classic", index: 4, expected: ""},
+	}
+
+	common := common.NewDummyCommon()
+	branches := []*models.Branch{{Name: "main", CommitHash: "branchname-main"}}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			common.UserConfig().Git.Log.GraphStyle = test.graphStyle
+			hashPool := &utils.StringPool{}
+			commits := lo.Map(commitOpts, func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
+
+			assert.Equal(t, test.expected, BranchNameOfCommit(common, commits, branches, test.index))
 		})
 	}
 }

@@ -2,6 +2,8 @@ package context
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/jesseduffield/lazygit/pkg/commands/models"
 	"github.com/jesseduffield/lazygit/pkg/gui/filetree"
@@ -9,6 +11,7 @@ import (
 	"github.com/jesseduffield/lazygit/pkg/gui/presentation/icons"
 	"github.com/jesseduffield/lazygit/pkg/gui/style"
 	"github.com/jesseduffield/lazygit/pkg/gui/types"
+	"github.com/jesseduffield/lazygit/pkg/utils"
 	"github.com/samber/lo"
 )
 
@@ -16,6 +19,9 @@ type CommitFilesContext struct {
 	*filetree.CommitFileTreeViewModel
 	*ListContextTrait
 	*DynamicTitleBuilder
+
+	// shown after the title, e.g. the author and date of the commit
+	titleDetails []string
 }
 
 var (
@@ -87,13 +93,31 @@ func (self *CommitFilesContext) GetFromAndToForDiff() (string, string) {
 	return ref.ParentRefName(), ref.RefName()
 }
 
-func (self *CommitFilesContext) ReInit(ref models.Ref, refRange *types.RefRange) {
+// ReInit shows the files of the given ref or range. The title shows the
+// author and date of a single commit, and the branch it is on, if known, as
+// the commits list may leave these out to make room for the graph.
+func (self *CommitFilesContext) ReInit(ref models.Ref, refRange *types.RefRange, branchName string) {
 	self.SetRef(ref)
 	self.SetRefRange(refRange)
 	if refRange != nil {
 		self.SetTitleRef(fmt.Sprintf("%s-%s", refRange.From.ShortRefName(), refRange.To.ShortRefName()))
-	} else {
-		self.SetTitleRef(ref.Description())
+		self.titleDetails = nil
+		self.GetView().Title = self.Title()
+		return
 	}
+
+	self.SetTitleRef(ref.Description())
+	details := []string{}
+	if commit, ok := ref.(*models.Commit); ok && !commit.IsTODO() {
+		userConfig := self.c.UserConfig()
+		details = append(details,
+			commit.AuthorName,
+			utils.UnixToDateSmart(time.Now(), commit.UnixTimestamp, userConfig.Gui.TimeFormat, userConfig.Gui.ShortTimeFormat))
+	}
+	self.titleDetails = lo.Compact(append(details, branchName))
 	self.GetView().Title = self.Title()
+}
+
+func (self *CommitFilesContext) Title() string {
+	return strings.Join(append([]string{self.DynamicTitleBuilder.Title()}, self.titleDetails...), " · ")
 }
