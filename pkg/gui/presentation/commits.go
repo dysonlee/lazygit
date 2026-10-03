@@ -172,18 +172,18 @@ func GetCommitListDisplayStrings(
 			graphCommits := commits[graphOffset:endIdx]
 			showRefLabels = graphStyle == "lanes" && lo.SomeBy(commits, func(commit *models.Commit) bool { return commit.ExtraInfo != "" })
 			var refLabels refLabelColumn
-			var hasLabel func(*models.Commit) bool
+			var hasLineToLabel func(*models.Commit) bool
 			if showRefLabels {
 				refLabels = newRefLabelColumn(
 					commits[rebaseOffset:], pipeSets, graphOffset-rebaseOffset, endIdx-rebaseOffset, branches, mainBranches, selectedCommitHashPtr)
-				hasLabel = refLabels.hasLabel
+				hasLineToLabel = refLabels.hasLineToLabel
 			}
 			graphLines := graph.RenderAux(
 				graphPipeSets,
 				graphCommits,
 				selectedCommitHashPtr,
 				glyphs,
-				hasLabel,
+				hasLineToLabel,
 			)
 			if showRefLabels {
 				graphLines = refLabels.prependTo(graphLines, icons.IsIconEnabled())

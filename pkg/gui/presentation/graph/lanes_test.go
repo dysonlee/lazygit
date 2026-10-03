@@ -132,8 +132,25 @@ func TestRenderLaneGraph(t *testing.T) {
 			labelled: []string{"c"},
 			expectedOutput: `
 			a ●
-			c │──●
+			c │┈┈●
 			b ●──╯`,
+		},
+		{
+			name: "the line from a label is dotted through empty columns too",
+			commitOpts: []models.NewCommitOpts{
+				{Hash: "a", Parents: []string{"x"}},
+				{Hash: "b", Parents: []string{"m"}},
+				{Hash: "c", Parents: []string{"z"}},
+				{Hash: "m", Parents: []string{}},
+				{Hash: "z", Parents: []string{"y"}},
+			},
+			labelled: []string{"z"},
+			expectedOutput: `
+			a ●
+			b │  ●
+			c │  │  ●
+			m │  ●  │
+			z │┈┈┈┈┈●`,
 		},
 		{
 			name: "a commit stays in the lane of its first-parent chain rather than the leftmost lane waiting for it",
@@ -429,4 +446,22 @@ func TestBranchTipIndexPrefersTheWayToTheMainBranch(t *testing.T) {
 	tipIdx := BranchTipIndex(commits, pipeSets, 3, hasBranch, isMainBranch)
 
 	assert.Equal(t, "main", commits[tipIdx].Hash())
+}
+
+func TestLabelLineHasTheColorOfTheCommit(t *testing.T) {
+	oldColorLevel := color.ForceSetColorLevel(terminfo.ColorLevelMillions)
+	defer color.ForceSetColorLevel(oldColorLevel)
+
+	commitOpts := []models.NewCommitOpts{
+		{Hash: "a", Parents: []string{"c"}},
+		{Hash: "b", Parents: []string{"c"}},
+	}
+	hashPool := &utils.StringPool{}
+	commits := lo.Map(commitOpts, func(opts models.NewCommitOpts, _ int) *models.Commit { return models.NewCommit(hashPool, opts) })
+	pipeSets := GetLanePipeSets(commits, nil, func(color int, _ *models.Commit) *style.TextStyle { return LaneStyle(color) })
+	hasLabel := func(commit *models.Commit) bool { return commit.Hash() == "b" }
+	lines := RenderAux(pipeSets, commits, nil, LaneGlyphs, hasLabel)
+
+	// b is the second branch, so it has the second lane color
+	assert.Contains(t, lines[1], LaneStyle(1).Sprint("┈┈"))
 }

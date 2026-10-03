@@ -63,36 +63,44 @@ func TestRenderRefLabels(t *testing.T) {
 		name      string
 		labels    []refLabel
 		withIcons bool
+		noLine    bool
 		expected  string
 	}{
 		{name: "no labels", labels: nil, expected: "                "},
 		{
 			name:     "checked-out branch and a tag",
 			labels:   []refLabel{{name: "main", head: true, local: true, remote: true}, {name: "v1", tag: true}},
-			expected: " ✓ main +1 ─────",
+			expected: " ✓ main +1 ┈┈┈┈┈",
 		},
 		{
 			name:      "with icons",
 			labels:    []refLabel{{name: "main", head: true, local: true, remote: true}, {name: "v1", tag: true}},
 			withIcons: true,
-			expected:  " ✓ main   +1 ─",
+			expected:  " ✓ main \uf109 \uf0c2 +1 ┈",
 		},
 		{
 			name:      "tag with icon",
 			labels:    []refLabel{{name: "v1.0", tag: true}},
 			withIcons: true,
-			expected:  " v1.0  ────────",
+			expected:  " v1.0 \uf02b ┈┈┈┈┈┈┈┈",
+		},
+		{
+			name:     "without a line",
+			labels:   []refLabel{{name: "main", head: true, local: true, remote: true}, {name: "v1", tag: true}},
+			noLine:   true,
+			expected: " ✓ main +1      ",
 		},
 		{
 			name:     "long names are truncated so that the line to the graph still shows",
 			labels:   []refLabel{{name: "feature/ROAR-13888-cleanup", local: true}},
-			expected: " feature/ROAR… ─",
+			expected: " feature/ROAR… ┈",
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			rendered := renderRefLabels(test.labels, 16, &style.FgDefault, &style.FgDefault, test.withIcons)
+			lineStyle := lo.Ternary(test.noLine, nil, &style.FgDefault)
+			rendered := renderRefLabels(test.labels, 16, &style.FgDefault, lineStyle, test.withIcons)
 
 			assert.Equal(t, test.expected, utils.Decolorise(rendered))
 		})

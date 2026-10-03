@@ -329,9 +329,9 @@ func TestGetCommitListDisplayStrings(t *testing.T) {
 			cherryPickedCommitHashSet: set.New[string](),
 			now:                       time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
 			expected: formatExpected(`
-		hash1  ✓ main ──────────●  commit1
+		hash1  ✓ main           ●  commit1
 		hash2                   ●  commit2
-		hash3  v1 ──────────────●  commit3
+		hash3  v1               ●  commit3
 						`),
 		},
 		{
@@ -352,9 +352,9 @@ func TestGetCommitListDisplayStrings(t *testing.T) {
 			cherryPickedCommitHashSet: set.New[string](),
 			now:                       time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
 			expected: formatExpected(`
-		sel1  ✓ main ──────────●  commit1
-		sel2  ✓ main ──────────●  commit2
-		sel3  v1 ──────────────●  commit3
+		sel1  ✓ main           ●  commit1
+		sel2  ✓ main ┈┈┈┈┈┈┈┈┈┈●  commit2
+		sel3  v1               ●  commit3
 						`),
 		},
 		{

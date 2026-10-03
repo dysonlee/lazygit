@@ -75,10 +75,11 @@ const (
 )
 
 // renderRefLabels renders the first of a commit's labels, followed by the
-// number of the others, and then a line that continues into the line to the
-// commit's node in the graph, filling the given width. A name too long for the
-// width is truncated, leaving room for at least some of the line, which shows
-// which commit the label belongs to. Without labels, it renders blanks.
+// number of the others, filling the given width with a line in lineStyle that
+// continues into the line to the commit's node in the graph, or with blanks if
+// lineStyle is nil. A name too long for the width is truncated, leaving room
+// for at least some of the line, which shows which commit the label belongs
+// to. Without labels, it renders blanks.
 func renderRefLabels(labels []refLabel, width int, labelStyle *style.TextStyle, lineStyle *style.TextStyle, withIcons bool) string {
 	if len(labels) == 0 {
 		return strings.Repeat(" ", width)
@@ -103,9 +104,11 @@ func renderRefLabels(labels []refLabel, width int, labelStyle *style.TextStyle, 
 	const minLineWidth = 1
 	nameWidth := width - minLineWidth - utils.StringWidth(prefix) - utils.StringWidth(suffix)
 	pill := prefix + utils.TruncateWithEllipsis(label.name, nameWidth) + suffix
-	line := strings.Repeat("─", max(width-utils.StringWidth(pill), 0))
-
-	return labelStyle.Sprint(pill) + lineStyle.Sprint(line)
+	lineWidth := max(width-utils.StringWidth(pill), 0)
+	if lineStyle == nil {
+		return labelStyle.Sprint(pill) + strings.Repeat(" ", lineWidth)
+	}
+	return labelStyle.Sprint(pill) + lineStyle.Sprint(graph.LabelLine(lineWidth))
 }
 
 // The width of the labels in front of the lane graph
@@ -113,18 +116,22 @@ const refLabelsWidth = 18
 
 // The labels of the commits of the rows of the graph that are rendered
 type refLabelColumn struct {
+	commits  []*models.Commit
 	labels   [][]refLabel
 	pipeSets [][]graph.Pipe
 	// whether the labels of a row are those of the branch that the commit is
 	// on rather than of refs pointing at the commit itself
 	branchLabel []bool
-	labelled    *set.Set[*string]
+	// the row of the selected commit, or -1 if it isn't visible
+	selectedIdx int
 }
 
 // newRefLabelColumn returns the labels of the commits in the range
 // [start, end) of the graph's commits. If the selected commit is among them
-// and has no refs of its own, it gets the labels of the tip of the branch it
-// is on, so that it's clear which branch it belongs to.
+// and has no refs of its own, it gets the labels of the branch it is on, so
+// that it's clear which branch it belongs to. Only the selected commit's label
+// is connected to the commit's node by a line, which would otherwise be
+// mistaken for the lines of the branches.
 func newRefLabelColumn(
 	commits []*models.Commit,
 	pipeSets [][]graph.Pipe,
@@ -149,14 +156,19 @@ func newRefLabelColumn(
 		branchLabel[selectedIdx] = true
 	}
 
-	labelled := set.NewFromSlice(lo.FilterMap(visibleCommits, func(commit *models.Commit, i int) (*string, bool) {
-		return commit.HashPtr(), len(labels[i]) > 0
-	}))
-	return refLabelColumn{labels: labels, pipeSets: pipeSets[start:end], branchLabel: branchLabel, labelled: labelled}
+	return refLabelColumn{
+		commits:     visibleCommits,
+		labels:      labels,
+		pipeSets:    pipeSets[start:end],
+		branchLabel: branchLabel,
+		selectedIdx: selectedIdx,
+	}
 }
 
-func (self refLabelColumn) hasLabel(commit *models.Commit) bool {
-	return self.labelled.Includes(commit.HashPtr())
+// hasLineToLabel tells whether the commit's node is connected to its label in
+// front of the graph by a line.
+func (self refLabelColumn) hasLineToLabel(commit *models.Commit) bool {
+	return self.selectedIdx != -1 && commit == self.commits[self.selectedIdx] && len(self.labels[self.selectedIdx]) > 0
 }
 
 // prependTo puts the labels in front of the graph lines, colored like the
@@ -167,7 +179,8 @@ func (self refLabelColumn) prependTo(graphLines []string, withIcons bool) []stri
 	return lo.Map(graphLines, func(graphLine string, i int) string {
 		commitStyle := graph.CommitStyle(self.pipeSets[i])
 		labelStyle := lo.Ternary(self.branchLabel[i], commitStyle, graph.LaneLabelStyle(commitStyle))
-		labels := renderRefLabels(self.labels[i], refLabelsWidth, labelStyle, commitStyle, withIcons)
+		lineStyle := lo.Ternary(i == self.selectedIdx, commitStyle, nil)
+		labels := renderRefLabels(self.labels[i], refLabelsWidth, labelStyle, lineStyle, withIcons)
 		return labels + graphLine
 	})
 }

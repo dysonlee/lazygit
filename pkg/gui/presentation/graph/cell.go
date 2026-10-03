@@ -2,7 +2,9 @@ package graph
 
 import (
 	"io"
+	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/gookit/color"
 	"github.com/jesseduffield/lazygit/pkg/gui/style"
@@ -90,6 +92,13 @@ var LaneNerdFontGlyphs = func() *Glyphs {
 	return &glyphs
 }()
 
+// LabelLine returns the given number of columns of the line that connects a
+// label in front of the graph to its commit. It is dotted, so that it can't be
+// mistaken for a branch.
+func LabelLine(width int) string {
+	return strings.Repeat("┈", width)
+}
+
 type cellType int
 
 const (
@@ -101,9 +110,12 @@ const (
 type Cell struct {
 	up, down, left, right bool
 	junction              bool
-	cellType              cellType
-	rightStyle            *style.TextStyle
-	style                 *style.TextStyle
+	// whether the horizontal line through the cell, or the connector to the
+	// next cell, is only part of the line that connects a label to its commit
+	labelLine, labelLineRight bool
+	cellType                  cellType
+	rightStyle                *style.TextStyle
+	style                     *style.TextStyle
 }
 
 // WithBranchDrawingGlyphs returns the given glyphs with the junctions drawn
@@ -125,6 +137,8 @@ func (cell *Cell) render(writer io.StringWriter, glyphs *Glyphs) {
 	case CONNECTION:
 		if cell.junction && cell.up && cell.down {
 			first = junctionGlyph(cell.left, cell.right, glyphs)
+		} else if cell.labelLine {
+			first = LabelLine(1)
 		} else {
 			first = getBoxDrawingChar(cell.up, cell.down, cell.left, cell.right)
 		}
@@ -146,7 +160,11 @@ func (cell *Cell) render(writer io.StringWriter, glyphs *Glyphs) {
 	// stick to only using foreground styles)
 	var styledSecond string
 	if cell.right {
-		styledSecond = cachedSprint(*rightStyle, glyphs.Horizontal)
+		if cell.labelLineRight {
+			styledSecond = cachedSprint(*rightStyle, LabelLine(utf8.RuneCountInString(glyphs.Horizontal)))
+		} else {
+			styledSecond = cachedSprint(*rightStyle, glyphs.Horizontal)
+		}
 	} else {
 		styledSecond = glyphs.Blank
 	}
@@ -233,10 +251,12 @@ func (cell *Cell) setRight(style *style.TextStyle, override bool) *Cell {
 func (cell *Cell) connectHorizontally(style *style.TextStyle) {
 	if !cell.up && !cell.down && !cell.left && !cell.right {
 		cell.style = style
+		cell.labelLine = true
 	}
 	cell.left = true
-	cell.right = true
-	if cell.rightStyle == nil {
+	if !cell.right {
+		cell.right = true
+		cell.labelLineRight = true
 		cell.rightStyle = style
 	}
 }
